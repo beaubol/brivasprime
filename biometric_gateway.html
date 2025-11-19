@@ -1,185 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS PRIME PROOF OF HUMAN GATEWAYy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MediaPipe Vision (Global Bundle) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
-    
+    <title>IDaSSERT HUMAN CHECK</title>
     <style>
-        body { background-color: #020617; color: white; font-family: sans-serif; overflow: hidden; }
-        .camera-container { position: relative; width: 280px; height: 280px; margin: 0 auto; }
-        .camera-ring {
-            position: absolute; inset: 0; border-radius: 50%; 
-            border: 4px solid #334155; overflow: hidden; 
-            transition: all 0.3s ease;
-        }
-        .camera-ring.active { border-color: #3B82F6; box-shadow: 0 0 25px #3B82F6; }
-        .camera-ring.success { border-color: #10B981; box-shadow: 0 0 25px #10B981; }
-        
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        
-        .scan-line {
-            position: absolute; width: 100%; height: 2px; background: #3B82F6;
-            box-shadow: 0 0 15px #3B82F6; top: 0; animation: scan 2s linear infinite;
-            display: none;
-        }
-        .active .scan-line { display: block; }
-        @keyframes scan { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-
-        #success-overlay {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.7);
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.5s; pointer-events: none;
-        }
-        #success-overlay.visible { opacity: 1; }
+        body { background: black; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        video { width: 100%; max-width: 400px; border: 2px solid #0f0; transform: scaleX(-1); }
+        #log { background: #111; width: 90%; height: 150px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; padding: 10px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 20px; cursor: pointer; background: #0f0; border: none; font-weight: bold; }
+        .status { font-size: 24px; margin: 10px; color: white; }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center h-screen">
+<body>
 
-    <!-- Header -->
-    <div class="absolute top-8 text-center">
-        <h1 class="text-blue-400 font-bold tracking-[0.2em] text-sm uppercase">BioGuard Secure</h1>
-        <div class="text-xs text-slate-500 mt-1">v3.0 PureJS</div>
-    </div>
+    <h1>BioGuard Diagnostic Mode</h1>
+    <div class="status" id="statusText">Waiting for start...</div>
+    
+    <video id="webcam" autoplay playsinline muted></video>
+    
+    <button id="startBtn">START CAMERA & AI</button>
 
-    <!-- Camera UI -->
-    <div class="camera-container">
-        <div id="ring" class="camera-ring">
-            <video id="webcam" autoplay playsinline muted></video>
-            <div class="scan-line"></div>
-            <div id="success-overlay">
-                <div class="bg-emerald-500 p-4 rounded-full">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-            </div>
-        </div>
-    </div>
+    <h3>System Logs:</h3>
+    <div id="log"></div>
 
-    <!-- Controls -->
-    <div class="mt-8 text-center min-h-[100px]">
-        <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
-            Initialize Gateway
-        </button>
+    <script type="module">
+        // 1. Setup Logging to Screen
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `> ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
 
-        <div id="challengeUI" class="hidden animate-bounce">
-            <div id="icon" class="text-5xl mb-2"></div>
-            <h2 id="instruction" class="text-2xl font-bold"></h2>
-        </div>
-        
-        <div id="statusUI" class="hidden text-emerald-400 font-bold text-xl mt-4">
-            IDENTITY VERIFIED
-        </div>
-    </div>
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    <!-- Footer Status -->
-    <div class="absolute bottom-6 bg-white/5 px-4 py-1 rounded-full border border-white/10">
-        <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span>
-        <span id="statusText" class="text-xs font-mono text-slate-400">Loading Engine...</span>
-    </div>
-
-    <script>
-        // --- CORE LOGIC ---
         const video = document.getElementById('webcam');
-        const startBtn = document.getElementById('startBtn');
-        const ring = document.getElementById('ring');
-        const statusText = document.getElementById('statusText');
-        const statusDot = document.getElementById('statusDot');
-        
+        const btn = document.getElementById('startBtn');
+        const status = document.getElementById('statusText');
         let faceLandmarker;
-        let currentChallenge = null;
-        let runningMode = "VIDEO";
         let lastVideoTime = -1;
 
-        const CHALLENGES = [
-            { id: 'blink', label: 'Blink Eyes', icon: '😉', score: 'eyeBlinkLeft', val: 0.5 },
-            { id: 'smile', label: 'Smile Wide', icon: '😃', score: 'mouthSmileLeft', val: 0.5 },
-            { id: 'turnLeft', label: 'Turn Left', icon: '⬅️', score: 'eyeLookOutLeft', val: 0.5 },
-            { id: 'mouth', label: 'Open Mouth', icon: '😮', score: 'jawOpen', val: 0.3 }
-        ];
-
-        // 1. Load AI Engine
-        async function init() {
+        btn.addEventListener('click', async () => {
+            btn.style.display = 'none';
+            log("Starting initialization...");
+            
             try {
-                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
+                // Step 1: Camera
+                log("Requesting Camera...");
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                log("Camera Access Granted!");
+
+                // Step 2: Load AI
+                log("Downloading AI Model (this may take a moment)...");
+                status.innerText = "Downloading AI...";
+                
+                const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
                 );
-                faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
+                
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
                         delegate: "GPU"
                     },
                     outputFaceBlendshapes: true,
-                    runningMode: runningMode,
+                    runningMode: "VIDEO",
                     numFaces: 1
                 });
-                
-                statusText.innerText = "System Ready";
-                statusDot.classList.replace('bg-yellow-500', 'bg-blue-500');
-                
-                // Start Camera immediately
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.addEventListener("loadeddata", predict);
-                
-            } catch (err) {
-                statusText.innerText = "Error: " + err.message;
-                statusDot.classList.replace('bg-yellow-500', 'bg-red-500');
-            }
-        }
 
-        // 2. Prediction Loop
-        async function predict() {
+                log("AI Engine Loaded Successfully!");
+                status.innerText = "System Active - Detecting...";
+                
+                // Start Loop
+                renderLoop();
+
+            } catch (error) {
+                log("CRITICAL ERROR: " + error.message);
+                status.innerText = "FAILED";
+                alert("Error: " + error.message);
+            }
+        });
+
+        async function renderLoop() {
             if (video.currentTime !== lastVideoTime) {
                 lastVideoTime = video.currentTime;
+                const startTimeMs = performance.now();
+                
                 if (faceLandmarker) {
-                    const startTimeMs = performance.now();
-                    const results = faceLandmarker.detectForVideo(video, startTimeMs);
+                    const result = faceLandmarker.detectForVideo(video, startTimeMs);
                     
-                    if (results.faceBlendshapes && results.faceBlendshapes.length > 0 && currentChallenge) {
-                        checkProgress(results.faceBlendshapes[0].categories);
+                    if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
+                        // Check Blink
+                        const score = result.faceBlendshapes[0].categories.find(c => c.categoryName === 'eyeBlinkLeft').score;
+                        if(score > 0.5) {
+                            status.innerText = "BLINK DETECTED! ✅";
+                            log("Blink detected: " + score.toFixed(2));
+                        } else {
+                            status.innerText = "Eyes Open - Waiting for Blink...";
+                        }
                     }
                 }
             }
-            requestAnimationFrame(predict);
+            requestAnimationFrame(renderLoop);
         }
-
-        // 3. Game Logic
-        function checkProgress(blendshapes) {
-            const metric = blendshapes.find(c => c.categoryName === currentChallenge.score);
-            if (metric && metric.score > currentChallenge.val) {
-                completeChallenge();
-            }
-        }
-
-        startBtn.addEventListener('click', () => {
-            startBtn.classList.add('hidden');
-            document.getElementById('challengeUI').classList.remove('hidden');
-            ring.classList.add('active');
-            statusText.innerText = "Authenticating...";
-            
-            // Pick random challenge
-            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-            document.getElementById('icon').innerText = currentChallenge.icon;
-            document.getElementById('instruction').innerText = currentChallenge.label;
-        });
-
-        function completeChallenge() {
-            currentChallenge = null; // Stop checking
-            document.getElementById('challengeUI').classList.add('hidden');
-            ring.classList.remove('active');
-            ring.classList.add('success');
-            document.getElementById('success-overlay').classList.add('visible');
-            document.getElementById('statusUI').classList.remove('hidden');
-            statusText.innerText = "Verified";
-            statusDot.classList.replace('bg-blue-500', 'bg-emerald-500');
-            statusDot.classList.remove('animate-pulse');
-        }
-
-        // Auto-start
-        init();
+        
+        log("Ready. Click Start.");
     </script>
 </body>
 </html>
