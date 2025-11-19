@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        /* --- CYBER AESTHETICS --- */
+        /* --- CYBERPUNK STYLING --- */
         body { 
             background-color: #020617; 
             color: #e2e8f0; 
@@ -116,8 +116,8 @@
     <!-- ACTION AREA -->
     <div class="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
         
-        <!-- 1. Start Button -->
-        <button id="initBtn" class="btn-cyber">
+        <!-- 1. Start Button (HARDWIRED ONCLICK) -->
+        <button id="initBtn" class="btn-cyber" onclick="startSystem()">
             INITIALIZE SYSTEM
         </button>
 
@@ -129,7 +129,7 @@
         </div>
 
         <!-- 3. Loader (Hidden) -->
-        <div id="loader" class="hidden flex-col items-center text-cyan-800 text-xs font-mono gap-3">
+        <div id="loader" class="hidden flex flex-col items-center text-cyan-800 text-xs font-mono gap-3">
             <div class="w-6 h-6 border-2 border-cyan-900 border-t-cyan-500 rounded-full animate-spin"></div>
             <span id="loader-text">LOADING NEURAL MESH...</span>
         </div>
@@ -141,22 +141,13 @@
     </div>
 
     <!-- LOGIC -->
-    <script type="module">
-        // --- UTILS ---
-        function log(msg, type='info') {
-            const box = document.getElementById('status-log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.innerText = `> ${msg}`;
-            box.appendChild(entry);
-            console.log(msg);
-        }
-
-        // --- ELEMENTS ---
+    <script>
+        // --- GLOBALS ---
         const video = document.getElementById('webcam');
         const eye = document.getElementById('eye');
         const initBtn = document.getElementById('initBtn');
         const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
         const challengeUI = document.getElementById('challengeUI');
         const instruction = document.getElementById('instruction');
         const icon = document.getElementById('icon');
@@ -174,8 +165,80 @@
             { id: 'mouth', text: 'OPEN MOUTH', icon: '😮', check: (s) => (s.jawOpen > 0.3) }
         ];
 
-        // --- STEP 1: CLICK HANDLER (Attached in JS, not HTML) ---
-        initBtn.addEventListener('click', async () => {
-            log("User Initiated Sequence.");
+        // --- LOGGING UTILS ---
+        function log(msg, type='info') {
+            const box = document.getElementById('status-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerText = `> ${msg}`;
+            box.appendChild(entry);
+            console.log(msg);
+        }
+
+        // --- MAIN START FUNCTION (Global Scope) ---
+        async function startSystem() {
+            // 1. Immediate UI Feedback
             initBtn.classList.add('hidden');
             loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            log("Initialization Sequence Started.");
+
+            try {
+                // 2. Dynamic Import
+                log("Importing Neural Engine...");
+                // We use explicit import() here so it works inside a standard script tag
+                const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm");
+                
+                // 3. Resolve WASM
+                log("Resolving WASM Files...");
+                const fileset = await vision.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
+
+                // 4. Build Graph
+                log("Compiling Neural Graph...");
+                faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                        delegate: "GPU"
+                    },
+                    outputFaceBlendshapes: true,
+                    runningMode: "VIDEO",
+                    numFaces: 1
+                });
+
+                // 5. Camera
+                log("Requesting Optics...");
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                
+                video.addEventListener("loadeddata", () => {
+                    log("Video Feed Active.", 'success');
+                    loader.classList.add('hidden');
+                    loader.classList.remove('flex');
+                    
+                    // Start Game
+                    eye.classList.add('active');
+                    challengeUI.classList.remove('hidden');
+                    nextChallenge();
+                    predictLoop();
+                });
+
+            } catch (err) {
+                log("CRITICAL ERROR: " + err.message, 'error');
+                loaderText.innerHTML = `<span class="text-red-500 font-bold">FAILURE: ${err.message}</span>`;
+                // If GPU failed, suggest CPU refresh
+                if(err.message.includes("GPU")) {
+                    log("GPU Error detected. Try refreshing.", 'error');
+                }
+            }
+        }
+
+        function nextChallenge() {
+            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+            instruction.innerText = currentChallenge.text;
+            icon.innerText = currentChallenge.icon;
+            log(`Task: ${currentChallenge.text}`);
+        }
+
+        async function predictLoop() {
