@@ -4,227 +4,182 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BioGuard Gateway</title>
-    
-    <!-- 1. Load Styles -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. Load React -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    
-    <!-- 3. Load MediaPipe (The Fix: Loading it globally instead of importing) -->
+    <!-- MediaPipe Vision (Global Bundle) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
-
+    
     <style>
-        .camera-container { position: relative; width: 100%; max-width: 320px; aspect-ratio: 1; margin: 0 auto; }
-        .camera-ring { 
-            position: absolute; inset: 0; border-radius: 50%; border: 4px solid #334155; 
-            overflow: hidden; transition: all 0.3s ease; z-index: 10;
+        body { background-color: #020617; color: white; font-family: sans-serif; overflow: hidden; }
+        .camera-container { position: relative; width: 280px; height: 280px; margin: 0 auto; }
+        .camera-ring {
+            position: absolute; inset: 0; border-radius: 50%; 
+            border: 4px solid #334155; overflow: hidden; 
+            transition: all 0.3s ease;
         }
-        .camera-ring.active { border-color: #3B82F6; box-shadow: 0 0 20px #3B82F6; }
-        .camera-ring.success { border-color: #10B981; box-shadow: 0 0 20px #10B981; }
+        .camera-ring.active { border-color: #3B82F6; box-shadow: 0 0 25px #3B82F6; }
+        .camera-ring.success { border-color: #10B981; box-shadow: 0 0 25px #10B981; }
         
-        .video-feed { 
-            width: 100%; height: 100%; object-fit: cover; 
-            transform: scaleX(-1); /* Mirror effect */
-        }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
         .scan-line {
             position: absolute; width: 100%; height: 2px; background: #3B82F6;
-            box-shadow: 0 0 10px #3B82F6; top: 0; left: 0;
-            animation: scan 2s linear infinite; opacity: 0.8; z-index: 20;
+            box-shadow: 0 0 15px #3B82F6; top: 0; animation: scan 2s linear infinite;
+            display: none;
         }
-        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+        .active .scan-line { display: block; }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+        #success-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.5s; pointer-events: none;
+        }
+        #success-overlay.visible { opacity: 1; }
     </style>
 </head>
-<body class="bg-slate-950 text-white h-screen flex items-center justify-center overflow-hidden selection:bg-blue-500">
-    <div id="root" class="w-full max-w-md"></div>
+<body class="flex flex-col items-center justify-center h-screen">
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    <!-- Header -->
+    <div class="absolute top-8 text-center">
+        <h1 class="text-blue-400 font-bold tracking-[0.2em] text-sm uppercase">BioGuard Secure</h1>
+        <div class="text-xs text-slate-500 mt-1">v3.0 PureJS</div>
+    </div>
 
-        // Access MediaPipe from the Global Window Object (The Fix)
-        const { FaceLandmarker, FilesetResolver } = mediapipe.tasks.vision;
+    <!-- Camera UI -->
+    <div class="camera-container">
+        <div id="ring" class="camera-ring">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="scan-line"></div>
+            <div id="success-overlay">
+                <div class="bg-emerald-500 p-4 rounded-full">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="mt-8 text-center min-h-[100px]">
+        <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
+            Initialize Gateway
+        </button>
+
+        <div id="challengeUI" class="hidden animate-bounce">
+            <div id="icon" class="text-5xl mb-2"></div>
+            <h2 id="instruction" class="text-2xl font-bold"></h2>
+        </div>
+        
+        <div id="statusUI" class="hidden text-emerald-400 font-bold text-xl mt-4">
+            IDENTITY VERIFIED
+        </div>
+    </div>
+
+    <!-- Footer Status -->
+    <div class="absolute bottom-6 bg-white/5 px-4 py-1 rounded-full border border-white/10">
+        <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span>
+        <span id="statusText" class="text-xs font-mono text-slate-400">Loading Engine...</span>
+    </div>
+
+    <script>
+        // --- CORE LOGIC ---
+        const video = document.getElementById('webcam');
+        const startBtn = document.getElementById('startBtn');
+        const ring = document.getElementById('ring');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        
+        let faceLandmarker;
+        let currentChallenge = null;
+        let runningMode = "VIDEO";
+        let lastVideoTime = -1;
 
         const CHALLENGES = [
-            { id: 'blinkLeft', label: 'Blink Left Eye', icon: '😉', threshold: 0.4 },
-            { id: 'smile', label: 'Smile Wide', icon: '😃', threshold: 0.5 },
-            { id: 'turnLeft', label: 'Turn Head Left', icon: '⬅️', threshold: 0.4 },
-            { id: 'turnRight', label: 'Turn Head Right', icon: '➡️', threshold: 0.4 },
-            { id: 'mouthOpen', label: 'Open Mouth', icon: '😮', threshold: 0.3 }
+            { id: 'blink', label: 'Blink Eyes', icon: '😉', score: 'eyeBlinkLeft', val: 0.5 },
+            { id: 'smile', label: 'Smile Wide', icon: '😃', score: 'mouthSmileLeft', val: 0.5 },
+            { id: 'turnLeft', label: 'Turn Left', icon: '⬅️', score: 'eyeLookOutLeft', val: 0.5 },
+            { id: 'mouth', label: 'Open Mouth', icon: '😮', score: 'jawOpen', val: 0.3 }
         ];
 
-        function App() {
-            const videoRef = useRef(null);
-            const [status, setStatus] = useState('initializing'); 
-            const [currentChallenge, setCurrentChallenge] = useState(null);
-            const [faceLandmarker, setFaceLandmarker] = useState(null);
-            const [feedback, setFeedback] = useState("Initializing System...");
-            const [lastVideoTime, setLastVideoTime] = useState(-1);
-
-            // 1. Initialize Neural Engine
-            useEffect(() => {
-                const initAI = async () => {
-                    try {
-                        const vision = await FilesetResolver.forVisionTasks(
-                            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                        );
-                        const landmarker = await FaceLandmarker.createFromOptions(vision, {
-                            baseOptions: {
-                                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-                                delegate: "GPU"
-                            },
-                            outputFaceBlendshapes: true,
-                            runningMode: "VIDEO",
-                            numFaces: 1
-                        });
-                        setFaceLandmarker(landmarker);
-                        setStatus('idle');
-                        setFeedback("System Ready");
-                    } catch (err) {
-                        console.error(err);
-                        setFeedback("Error: Engine Failed");
-                    }
-                };
-                initAI();
-            }, []);
-
-            // 2. Start Camera
-            useEffect(() => {
-                const startCam = async () => {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        if (videoRef.current) {
-                            videoRef.current.srcObject = stream;
-                        }
-                    } catch (err) {
-                        setFeedback("Camera Denied");
-                    }
-                };
-                startCam();
-            }, []);
-
-            // 3. Real-time Prediction Loop
-            useEffect(() => {
-                if (!faceLandmarker || !videoRef.current) return;
-
-                const interval = setInterval(() => {
-                    if (videoRef.current.currentTime !== lastVideoTime) {
-                        const startTimeMs = performance.now();
-                        try {
-                            const results = faceLandmarker.detectForVideo(videoRef.current, startTimeMs);
-                            if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                                checkLogic(results.faceBlendshapes[0].categories);
-                            }
-                        } catch (e) { /* Ignore frames if busy */ }
-                        setLastVideoTime(videoRef.current.currentTime);
-                    }
-                }, 100); // Run every 100ms
-
-                return () => clearInterval(interval);
-            }, [faceLandmarker, status, currentChallenge]);
-
-            const checkLogic = (blendshapes) => {
-                if (status !== 'challenging' || !currentChallenge) return;
-
-                // Convert array to easy lookup object
-                const scores = {};
-                blendshapes.forEach(b => scores[b.categoryName] = b.score);
-
-                let score = 0;
-                if (currentChallenge.id === 'blinkLeft') score = scores['eyeBlinkLeft'];
-                if (currentChallenge.id === 'smile') score = (scores['mouthSmileLeft'] + scores['mouthSmileRight']) / 2;
-                if (currentChallenge.id === 'mouthOpen') score = scores['jawOpen'];
-                if (currentChallenge.id === 'turnLeft') score = scores['eyeLookOutLeft'];
-                if (currentChallenge.id === 'turnRight') score = scores['eyeLookOutRight'];
-
-                if (score > currentChallenge.threshold) {
-                    passChallenge();
-                }
-            };
-
-            const startAuth = () => {
-                setStatus('challenging');
-                const next = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-                setCurrentChallenge(next);
-                setFeedback(next.label);
-            };
-
-            const passChallenge = () => {
-                setStatus('verifying');
-                setFeedback("Verifying...");
-                setTimeout(() => {
-                    setStatus('success');
-                    setFeedback("Identity Confirmed");
-                    setCurrentChallenge(null);
-                    setTimeout(() => {
-                        setStatus('idle');
-                        setFeedback("System Ready");
-                    }, 4000);
-                }, 1000);
-            };
-
-            return (
-                <div className="p-6 text-center w-full">
-                    <div className="mb-8">
-                        <h1 className="text-blue-400 font-bold tracking-[0.2em] text-sm uppercase mb-1">BioGuard Secure</h1>
-                        <div className="h-1 w-12 bg-blue-500 mx-auto rounded-full"></div>
-                    </div>
-
-                    <div className="camera-container mb-8">
-                        <div className={`camera-ring ${status === 'challenging' ? 'active' : ''} ${status === 'success' ? 'success' : ''} ${status === 'verifying' ? 'animate-pulse border-yellow-500' : ''}`}>
-                            <video ref={videoRef} autoPlay playsInline muted className="video-feed"></video>
-                            {(status === 'challenging' || status === 'verifying') && <div className="scan-line"></div>}
-                            
-                            {status === 'success' && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30 animate-in fade-in zoom-in">
-                                    <div className="bg-emerald-500 p-4 rounded-full shadow-xl shadow-emerald-500/20">
-                                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="min-h-[120px] flex flex-col items-center justify-center">
-                        {status === 'idle' && (
-                            <button onClick={startAuth} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg shadow-blue-500/20 transition-all active:scale-95">
-                                Begin Authentication
-                            </button>
-                        )}
-
-                        {status === 'challenging' && (
-                            <div className="animate-in slide-in-from-bottom-4">
-                                <div className="text-5xl mb-3">{currentChallenge.icon}</div>
-                                <h2 className="text-2xl font-bold">{currentChallenge.label}</h2>
-                            </div>
-                        )}
-
-                        {status === 'verifying' && (
-                            <div className="flex items-center gap-3 text-yellow-400">
-                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                <span className="font-mono text-sm tracking-wider">PROCESSING NEURAL HASH</span>
-                            </div>
-                        )}
-                        
-                        {status === 'success' && (
-                            <div className="text-emerald-400 font-bold text-xl tracking-wide">ACCESS GRANTED</div>
-                        )}
-                    </div>
-
-                    <div className="fixed bottom-6 left-0 right-0 text-center">
-                         <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono border border-white/5 bg-white/5 backdrop-blur-md ${status === 'initializing' ? 'text-yellow-200' : 'text-slate-400'}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${status === 'initializing' ? 'bg-yellow-400 animate-ping' : 'bg-emerald-400'}`}></div>
-                            {feedback}
-                         </div>
-                    </div>
-                </div>
-            );
+        // 1. Load AI Engine
+        async function init() {
+            try {
+                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
+                faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                        delegate: "GPU"
+                    },
+                    outputFaceBlendshapes: true,
+                    runningMode: runningMode,
+                    numFaces: 1
+                });
+                
+                statusText.innerText = "System Ready";
+                statusDot.classList.replace('bg-yellow-500', 'bg-blue-500');
+                
+                // Start Camera immediately
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.addEventListener("loadeddata", predict);
+                
+            } catch (err) {
+                statusText.innerText = "Error: " + err.message;
+                statusDot.classList.replace('bg-yellow-500', 'bg-red-500');
+            }
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // 2. Prediction Loop
+        async function predict() {
+            if (video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                if (faceLandmarker) {
+                    const startTimeMs = performance.now();
+                    const results = faceLandmarker.detectForVideo(video, startTimeMs);
+                    
+                    if (results.faceBlendshapes && results.faceBlendshapes.length > 0 && currentChallenge) {
+                        checkProgress(results.faceBlendshapes[0].categories);
+                    }
+                }
+            }
+            requestAnimationFrame(predict);
+        }
+
+        // 3. Game Logic
+        function checkProgress(blendshapes) {
+            const metric = blendshapes.find(c => c.categoryName === currentChallenge.score);
+            if (metric && metric.score > currentChallenge.val) {
+                completeChallenge();
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            startBtn.classList.add('hidden');
+            document.getElementById('challengeUI').classList.remove('hidden');
+            ring.classList.add('active');
+            statusText.innerText = "Authenticating...";
+            
+            // Pick random challenge
+            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+            document.getElementById('icon').innerText = currentChallenge.icon;
+            document.getElementById('instruction').innerText = currentChallenge.label;
+        });
+
+        function completeChallenge() {
+            currentChallenge = null; // Stop checking
+            document.getElementById('challengeUI').classList.add('hidden');
+            ring.classList.remove('active');
+            ring.classList.add('success');
+            document.getElementById('success-overlay').classList.add('visible');
+            document.getElementById('statusUI').classList.remove('hidden');
+            statusText.innerText = "Verified";
+            statusDot.classList.replace('bg-blue-500', 'bg-emerald-500');
+            statusDot.classList.remove('animate-pulse');
+        }
+
+        // Auto-start
+        init();
     </script>
 </body>
 </html>
