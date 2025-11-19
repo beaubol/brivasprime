@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS // CALIBRATED</title>
+    <title>BRIVAS // FULL MOTION</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- LOAD LEGACY ENGINE -->
@@ -12,7 +12,17 @@
 
     <style>
         /* --- CYBER VISUALS --- */
-        body { background-color: #000510; color: #00f3ff; font-family: 'Courier New', monospace; height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        body { 
+            background-color: #000510; 
+            color: #00f3ff; 
+            font-family: 'Courier New', monospace; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
 
         .eye-frame {
             position: relative; width: 300px; height: 300px; border-radius: 50%; 
@@ -54,7 +64,7 @@
     <!-- HUD -->
     <div class="absolute top-12 text-center z-20">
         <h1 class="text-5xl font-bold tracking-[0.2em] text-cyan-400 drop-shadow-lg">BRIVAS</h1>
-        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">CALIBRATED NEURAL CORE v2.1</div>
+        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">FULL MOTION NEURAL CORE v3.0</div>
     </div>
 
     <!-- EYE -->
@@ -102,7 +112,9 @@
             { id: 'blink', text: 'BLINK EYES', icon: '👁️' },
             { id: 'smile', text: 'SMILE WIDE', icon: '😃' },
             { id: 'left', text: 'TURN LEFT', icon: '⬅️' },
-            { id: 'right', text: 'TURN RIGHT', icon: '➡️' }
+            { id: 'right', text: 'TURN RIGHT', icon: '➡️' },
+            { id: 'up', text: 'LOOK UP', icon: '⬆️' },
+            { id: 'down', text: 'LOOK DOWN', icon: '⬇️' }
         ];
 
         window.onload = function() {
@@ -156,56 +168,68 @@
             
             // --- RELATIVE MATH (Distance Independent) ---
             
-            // 1. BLINK RATIO (Vertical / Horizontal)
+            // 1. BLINK RATIO
             const eyeTop = landmarks[159];
             const eyeBottom = landmarks[145];
             const eyeLeft = landmarks[33];
             const eyeRight = landmarks[133];
-            
             const eyeV = Math.abs(eyeTop.y - eyeBottom.y);
             const eyeH = Math.abs(eyeLeft.x - eyeRight.x);
-            const blinkRatio = eyeV / eyeH; // Open ~0.3, Closed < 0.18
+            const blinkRatio = eyeV / eyeH; 
 
-            // 2. SMILE RATIO (Mouth Width / Face Width)
+            // 2. SMILE RATIO
             const mouthLeft = landmarks[61];
             const mouthRight = landmarks[291];
             const cheekLeft = landmarks[234];
             const cheekRight = landmarks[454];
-            
             const mouthW = Math.abs(mouthLeft.x - mouthRight.x);
             const faceW = Math.abs(cheekLeft.x - cheekRight.x);
-            const smileRatio = mouthW / faceW; // Neutral ~0.35, Smile > 0.45
+            const smileRatio = mouthW / faceW;
 
-            // 3. TURN VAL (Nose X relative to Face Center)
+            // 3. HEAD TURN (X-Axis)
             const nose = landmarks[1];
-            const faceCenter = (cheekLeft.x + cheekRight.x) / 2;
-            const turnVal = nose.x - faceCenter;
+            const faceCenterX = (cheekLeft.x + cheekRight.x) / 2;
+            const turnValX = nose.x - faceCenterX;
+
+            // 4. HEAD PITCH (Y-Axis)
+            const eyeCenterY = (eyeLeft.y + eyeRight.y) / 2;
+            const turnValY = nose.y - eyeCenterY; 
 
             let pass = false;
             let debugInfo = "";
 
             if (currentChallenge.id === 'blink') {
-                debugInfo = `Eye Ratio: ${blinkRatio.toFixed(2)} (Goal < 0.18)`;
+                debugInfo = `Eye: ${blinkRatio.toFixed(2)} (Goal < 0.18)`;
                 if (blinkRatio < 0.18) pass = true;
             }
             
             if (currentChallenge.id === 'smile') {
-                debugInfo = `Smile Ratio: ${smileRatio.toFixed(2)} (Goal > 0.48)`;
+                debugInfo = `Smile: ${smileRatio.toFixed(2)} (Goal > 0.48)`;
                 if (smileRatio > 0.48) pass = true;
             }
             
             if (currentChallenge.id === 'left') {
-                debugInfo = `Turn Val: ${turnVal.toFixed(2)} (Goal < -0.04)`;
-                if (turnVal < -0.04) pass = true;
+                debugInfo = `Turn X: ${turnValX.toFixed(2)} (Goal < -0.05)`;
+                if (turnValX < -0.05) pass = true;
             }
             
             if (currentChallenge.id === 'right') {
-                debugInfo = `Turn Val: ${turnVal.toFixed(2)} (Goal > 0.04)`;
-                if (turnVal > 0.04) pass = true;
+                debugInfo = `Turn X: ${turnValX.toFixed(2)} (Goal > 0.05)`;
+                if (turnValX > 0.05) pass = true;
             }
 
-            // Show live stats occasionally to help debug (1 in 10 frames)
-            if (Math.random() > 0.9) log("STATS: " + debugInfo);
+            if (currentChallenge.id === 'up') {
+                debugInfo = `Nose Y: ${turnValY.toFixed(2)} (Goal < 0.08)`;
+                if (turnValY < 0.08) pass = true;
+            }
+
+            if (currentChallenge.id === 'down') {
+                debugInfo = `Nose Y: ${turnValY.toFixed(2)} (Goal > 0.25)`;
+                if (turnValY > 0.25) pass = true;
+            }
+
+            // Live Debug Log (1 in 15 frames)
+            if (Math.random() > 0.93) log("STATS: " + debugInfo);
 
             if (pass) success();
         }
