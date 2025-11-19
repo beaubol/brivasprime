@@ -4,14 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BRIVAS // SECURE</title>
+    
+    <!-- 1. CORE LIBRARIES (The stack that worked for you) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     
     <style>
-        /* --- CYBERPUNK STYLING --- */
+        /* --- CYBERPUNK STYLES --- */
         body { 
             background-color: #020617; 
             color: #e2e8f0; 
-            font-family: 'Courier New', Courier, monospace; 
+            font-family: 'Courier New', monospace; 
             overflow: hidden; 
             height: 100vh;
             display: flex;
@@ -19,144 +24,54 @@
             align-items: center;
             justify-content: center;
         }
-
-        /* EYE PORTAL */
-        .eye-frame {
-            position: relative;
-            width: 300px; height: 300px;
-            border-radius: 50%;
-            border: 2px solid #1e293b;
-            background: #000;
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.1);
-            overflow: hidden;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
         
-        /* States */
-        .eye-frame.active { border-color: #06b6d4; box-shadow: 0 0 50px rgba(6, 182, 212, 0.5); }
-        .eye-frame.success { border-color: #10b981; box-shadow: 0 0 50px rgba(16, 185, 129, 0.5); }
-
-        /* VIDEO FEED */
-        video {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1); /* Mirror */
-            opacity: 0.3;
-            filter: grayscale(100%) contrast(1.2) brightness(0.8);
+        /* EYE FRAME */
+        .eye-frame {
+            position: relative; width: 280px; height: 280px; margin: 0 auto;
+            border-radius: 50%; border: 2px solid #1e293b; background: #000;
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.1); overflow: hidden;
             transition: all 0.5s;
         }
-        .eye-frame.active video { opacity: 1; filter: grayscale(0%) contrast(1); }
+        /* Dynamic States */
+        .active { border-color: #06b6d4; box-shadow: 0 0 50px rgba(6, 182, 212, 0.5); }
+        .success { border-color: #10b981; box-shadow: 0 0 50px rgba(16, 185, 129, 0.5); }
 
-        /* SCANNER BEAM */
+        /* VIDEO */
+        video {
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scaleX(-1); opacity: 0.3; filter: grayscale(100%) contrast(1.2);
+            transition: all 0.5s;
+        }
+        .active video { opacity: 1; filter: grayscale(0%); }
+
+        /* SCANNER */
         .scanner {
             position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: #06b6d4; box-shadow: 0 0 15px #06b6d4;
-            opacity: 0; z-index: 10;
+            background: #06b6d4; box-shadow: 0 0 15px #06b6d4; opacity: 0; z-index: 10;
         }
-        .eye-frame.active .scanner { opacity: 1; animation: scan 1.5s ease-in-out infinite; }
+        .active .scanner { opacity: 1; animation: scan 1.5s ease-in-out infinite; }
         @keyframes scan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
 
-        /* BUTTONS */
+        /* BUTTON */
         .btn-cyber {
-            background: rgba(6, 182, 212, 0.05);
-            border: 1px solid #06b6d4;
-            color: #06b6d4;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            padding: 15px 40px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 0 10px rgba(6, 182, 212, 0.1);
+            background: rgba(6, 182, 212, 0.1); border: 1px solid #06b6d4; color: #06b6d4;
+            text-transform: uppercase; letter-spacing: 3px; padding: 15px 30px;
+            font-weight: bold; cursor: pointer; transition: all 0.3s;
         }
-        .btn-cyber:hover {
-            background: #06b6d4;
-            color: #000;
-            box-shadow: 0 0 30px #06b6d4;
-        }
-
-        /* LOGS */
-        #status-log {
-            position: fixed; bottom: 20px; right: 20px;
-            font-size: 10px; color: #475569;
-            text-align: right; pointer-events: none;
-        }
-        .log-entry { margin-top: 2px; }
-        .log-info { color: #06b6d4; }
-        .log-error { color: #ef4444; }
-        .log-success { color: #10b981; }
+        .btn-cyber:hover { background: #06b6d4; color: #000; box-shadow: 0 0 30px #06b6d4; }
     </style>
 </head>
 <body>
+    <div id="root" class="w-full h-full flex flex-col items-center justify-center"></div>
 
-    <!-- HEADER HUD -->
-    <div class="absolute top-10 text-center z-20">
-        <h1 class="text-4xl font-bold tracking-[0.3em] text-cyan-500" style="text-shadow: 0 0 20px rgba(6,182,212,0.6);">BRIVAS</h1>
-        <div class="flex justify-center gap-3 mt-2 text-[10px] text-cyan-900 font-bold tracking-widest">
-            <span>NEURAL</span> // <span>GATEWAY</span> // <span>V4.0</span>
-        </div>
-    </div>
+    <!-- 2. REACT APP LOGIC -->
+    <script type="text/babel" data-type="module">
+        // Import MediaPipe (The Module that worked)
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    <!-- MAIN INTERFACE -->
-    <div class="relative z-10 mt-8">
-        <div id="eye" class="eye-frame">
-            <video id="webcam" autoplay playsinline muted></video>
-            <div class="scanner"></div>
-        </div>
-        
-        <!-- OVERLAYS -->
-        <div id="overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <!-- Success Icon -->
-            <div id="success-icon" class="hidden bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
-                <svg class="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
-            </div>
-        </div>
-    </div>
+        const { useState, useEffect, useRef } = React;
 
-    <!-- ACTION AREA -->
-    <div class="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
-        
-        <!-- 1. Start Button (HARDWIRED ONCLICK) -->
-        <button id="initBtn" class="btn-cyber" onclick="startSystem()">
-            INITIALIZE SYSTEM
-        </button>
-
-        <!-- 2. Challenge UI (Hidden) -->
-        <div id="challengeUI" class="hidden">
-            <div id="icon" class="text-7xl mb-4 animate-bounce drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"></div>
-            <div class="text-cyan-400 font-bold text-2xl tracking-widest uppercase animate-pulse" id="instruction"></div>
-            <div class="text-xs text-cyan-900 mt-2 tracking-widest">AWAITING BIOMETRIC CONFIRMATION</div>
-        </div>
-
-        <!-- 3. Loader (Hidden) -->
-        <div id="loader" class="hidden flex flex-col items-center text-cyan-800 text-xs font-mono gap-3">
-            <div class="w-6 h-6 border-2 border-cyan-900 border-t-cyan-500 rounded-full animate-spin"></div>
-            <span id="loader-text">LOADING NEURAL MESH...</span>
-        </div>
-    </div>
-
-    <!-- LOGS -->
-    <div id="status-log">
-        <div class="log-entry">SYSTEM STANDBY...</div>
-    </div>
-
-    <!-- LOGIC -->
-    <script>
-        // --- GLOBALS ---
-        const video = document.getElementById('webcam');
-        const eye = document.getElementById('eye');
-        const initBtn = document.getElementById('initBtn');
-        const loader = document.getElementById('loader');
-        const loaderText = document.getElementById('loader-text');
-        const challengeUI = document.getElementById('challengeUI');
-        const instruction = document.getElementById('instruction');
-        const icon = document.getElementById('icon');
-
-        let faceLandmarker;
-        let lastVideoTime = -1;
-        let currentChallenge = null;
-
-        // --- CHALLENGES ---
+        // Challenge Logic
         const CHALLENGES = [
             { id: 'blink', text: 'BLINK EYES', icon: '👁️', check: (s) => (s.eyeBlinkLeft > 0.5 || s.eyeBlinkRight > 0.5) },
             { id: 'smile', text: 'SMILE WIDE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5 && s.mouthSmileRight > 0.5) },
@@ -165,80 +80,155 @@
             { id: 'mouth', text: 'OPEN MOUTH', icon: '😮', check: (s) => (s.jawOpen > 0.3) }
         ];
 
-        // --- LOGGING UTILS ---
-        function log(msg, type='info') {
-            const box = document.getElementById('status-log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.innerText = `> ${msg}`;
-            box.appendChild(entry);
-            console.log(msg);
-        }
+        function App() {
+            const videoRef = useRef(null);
+            const [status, setStatus] = useState('booting'); // booting, ready, active, success
+            const [challenge, setChallenge] = useState(null);
+            const [landmarker, setLandmarker] = useState(null);
+            const [logText, setLogText] = useState("SYSTEM BOOT...");
 
-        // --- MAIN START FUNCTION (Global Scope) ---
-        async function startSystem() {
-            // 1. Immediate UI Feedback
-            initBtn.classList.add('hidden');
-            loader.classList.remove('hidden');
-            loader.classList.add('flex');
-            log("Initialization Sequence Started.");
+            // 1. INITIALIZE SYSTEM
+            useEffect(() => {
+                const loadAI = async () => {
+                    try {
+                        setLogText("LOADING NEURAL MESH...");
+                        const fileset = await FilesetResolver.forVisionTasks(
+                            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                        );
+                        const faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
+                            baseOptions: {
+                                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                                delegate: "GPU"
+                            },
+                            outputFaceBlendshapes: true,
+                            runningMode: "VIDEO",
+                            numFaces: 1
+                        });
+                        setLandmarker(faceLandmarker);
+                        setLogText("NEURAL ENGINE READY.");
+                        
+                        // Start Camera
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = stream;
+                            videoRef.current.addEventListener("loadeddata", () => {
+                                setStatus('ready');
+                                setLogText("OPTICS ONLINE. WAITING.");
+                            });
+                        }
+                    } catch (err) {
+                        setLogText("ERROR: " + err.message);
+                    }
+                };
+                loadAI();
+            }, []);
 
-            try {
-                // 2. Dynamic Import
-                log("Importing Neural Engine...");
-                // We use explicit import() here so it works inside a standard script tag
-                const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm");
-                
-                // 3. Resolve WASM
-                log("Resolving WASM Files...");
-                const fileset = await vision.FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                );
+            // 2. DETECTION LOOP
+            useEffect(() => {
+                let lastTime = -1;
+                let frameId;
 
-                // 4. Build Graph
-                log("Compiling Neural Graph...");
-                faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
-                    baseOptions: {
-                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-                        delegate: "GPU"
-                    },
-                    outputFaceBlendshapes: true,
-                    runningMode: "VIDEO",
-                    numFaces: 1
-                });
+                const renderLoop = () => {
+                    if (landmarker && videoRef.current && videoRef.current.currentTime !== lastTime) {
+                        lastTime = videoRef.current.currentTime;
+                        try {
+                            const results = landmarker.detectForVideo(videoRef.current, performance.now());
+                            if (status === 'active' && challenge && results.faceBlendshapes.length > 0) {
+                                const scores = {};
+                                results.faceBlendshapes[0].categories.forEach(c => scores[c.categoryName] = c.score);
+                                if (challenge.check(scores)) {
+                                    handleSuccess();
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                    frameId = requestAnimationFrame(renderLoop);
+                };
+                frameId = requestAnimationFrame(renderLoop);
+                return () => cancelAnimationFrame(frameId);
+            }, [landmarker, status, challenge]);
 
-                // 5. Camera
-                log("Requesting Optics...");
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                
-                video.addEventListener("loadeddata", () => {
-                    log("Video Feed Active.", 'success');
-                    loader.classList.add('hidden');
-                    loader.classList.remove('flex');
+            const startAuth = () => {
+                setStatus('active');
+                const next = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+                setChallenge(next);
+                setLogText("AUTH SEQUENCE STARTED.");
+            };
+
+            const handleSuccess = () => {
+                setStatus('success');
+                setLogText("IDENTITY CONFIRMED.");
+                setTimeout(() => {
+                    setStatus('ready');
+                    setLogText("SYSTEM RESET.");
+                }, 3000);
+            };
+
+            return (
+                <div className="flex flex-col items-center w-full">
                     
-                    // Start Game
-                    eye.classList.add('active');
-                    challengeUI.classList.remove('hidden');
-                    nextChallenge();
-                    predictLoop();
-                });
+                    {/* HEADER */}
+                    <div className="text-center z-20 mb-10">
+                        <h1 className="text-4xl font-bold tracking-[0.3em] text-cyan-500" style={{textShadow: "0 0 20px rgba(6,182,212,0.5)"}}>BRIVAS</h1>
+                        <div className="flex justify-center gap-2 mt-2 text-[10px] text-cyan-800 font-bold tracking-widest">
+                            <span>SECURE</span> // <span>GATEWAY</span> // <span>V4.0</span>
+                        </div>
+                    </div>
 
-            } catch (err) {
-                log("CRITICAL ERROR: " + err.message, 'error');
-                loaderText.innerHTML = `<span class="text-red-500 font-bold">FAILURE: ${err.message}</span>`;
-                // If GPU failed, suggest CPU refresh
-                if(err.message.includes("GPU")) {
-                    log("GPU Error detected. Try refreshing.", 'error');
-                }
-            }
+                    {/* EYE INTERFACE */}
+                    <div className="relative z-10">
+                        <div className={`eye-frame ${status === 'active' ? 'active' : ''} ${status === 'success' ? 'success' : ''}`}>
+                            <video ref={videoRef} autoPlay playsInline muted></video>
+                            <div className="scanner"></div>
+                        </div>
+                        
+                        {/* SUCCESS OVERLAY */}
+                        {status === 'success' && (
+                            <div className="absolute inset-0 flex items-center justify-center z-20">
+                                <div className="bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
+                                    <svg className="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* CONTROLS */}
+                    <div className="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
+                        
+                        {status === 'ready' && (
+                            <button onClick={startAuth} className="btn-cyber animate-pulse">
+                                INITIALIZE LINK
+                            </button>
+                        )}
+
+                        {status === 'booting' && (
+                            <div className="flex flex-col items-center text-cyan-900 text-xs font-mono gap-3">
+                                <div className="w-8 h-8 border-2 border-cyan-900 border-t-cyan-500 rounded-full animate-spin"></div>
+                                <span className="tracking-widest">BOOT SEQUENCE...</span>
+                            </div>
+                        )}
+
+                        {status === 'active' && challenge && (
+                            <div className="animate-bounce">
+                                <div className="text-7xl mb-4">{challenge.icon}</div>
+                                <div className="text-cyan-400 font-bold text-2xl tracking-widest uppercase animate-pulse" style={{textShadow: "0 0 10px #06b6d4"}}>
+                                    {challenge.text}
+                                </div>
+                                <div className="text-xs text-cyan-900 mt-2 tracking-widest">AWAITING BIOMETRIC INPUT</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* LOGS */}
+                    <div className="fixed bottom-4 right-4 text-[10px] text-slate-600 font-mono text-right">
+                        STATUS: <span className="text-cyan-600 font-bold">{logText}</span>
+                    </div>
+                </div>
+            );
         }
 
-        function nextChallenge() {
-            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-            instruction.innerText = currentChallenge.text;
-            icon.innerText = currentChallenge.icon;
-            log(`Task: ${currentChallenge.text}`);
-        }
-
-        async function predictLoop() {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
