@@ -6,9 +6,12 @@
     <title>BRIVAS // SECURE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- THE FIX: Loading the full bundle globally. No 'import' needed. -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    
     <style>
         /* --- CYBERPUNK STYLING --- */
-        body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        body { background-color: #050505; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         
         /* The Eye Container */
         .eye-frame {
@@ -16,22 +19,23 @@
             width: 300px; height: 300px;
             margin: 0 auto;
             border-radius: 50%;
-            border: 2px solid #1e293b; /* Dark border */
-            box-shadow: 0 0 20px rgba(0,0,0,0.8) inset;
+            border: 2px solid #333; /* Dark border */
+            background: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
             overflow: hidden;
             transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* State: Active (Blue Glow) */
+        /* State: Active (Cyan Glow) */
         .eye-frame.active {
-            border-color: #06b6d4; /* Cyan-500 */
-            box-shadow: 0 0 30px #06b6d4, 0 0 10px #06b6d4 inset;
+            border-color: #06b6d4; /* Cyan */
+            box-shadow: 0 0 40px #06b6d4, inset 0 0 20px #06b6d4;
         }
 
         /* State: Success (Green Glow) */
         .eye-frame.success {
-            border-color: #10b981; /* Emerald-500 */
-            box-shadow: 0 0 40px #10b981, 0 0 20px #10b981 inset;
+            border-color: #10b981; /* Emerald */
+            box-shadow: 0 0 50px #10b981, inset 0 0 30px #10b981;
         }
 
         /* The Video Feed */
@@ -39,23 +43,24 @@
             width: 100%; height: 100%;
             object-fit: cover;
             transform: scaleX(-1); /* Mirror */
-            opacity: 0.6; /* Dimmed until active */
-            transition: opacity 0.5s;
+            opacity: 0.4; /* Dimmed until active */
+            filter: grayscale(100%) contrast(1.2); /* Cyber look */
+            transition: all 0.5s;
         }
-        .eye-frame.active video { opacity: 1; }
+        .eye-frame.active video { opacity: 1; filter: grayscale(0%) contrast(1); }
 
         /* The Scanning Laser */
         .scanner {
             position: absolute; top: 0; left: 0;
-            width: 100%; height: 4px;
+            width: 100%; height: 2px;
             background: #06b6d4;
-            box-shadow: 0 0 15px #06b6d4;
+            box-shadow: 0 0 15px #06b6d4, 0 0 30px #06b6d4;
             opacity: 0;
             z-index: 10;
         }
         .eye-frame.active .scanner {
             opacity: 1;
-            animation: scan 2s ease-in-out infinite;
+            animation: scan 1.5s ease-in-out infinite;
         }
         @keyframes scan {
             0% { top: 0%; }
@@ -64,76 +69,76 @@
         }
 
         /* HUD Elements */
-        .hud-text { text-shadow: 0 0 5px rgba(6, 182, 212, 0.5); }
+        .hud-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
         .btn-cyber {
-            background: linear-gradient(45deg, #0f172a, #1e293b);
+            background: rgba(6, 182, 212, 0.1);
             border: 1px solid #06b6d4;
             color: #06b6d4;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+            letter-spacing: 3px;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
             transition: all 0.3s;
         }
         .btn-cyber:hover {
             background: #06b6d4;
             color: #000;
-            box-shadow: 0 0 20px #06b6d4;
+            box-shadow: 0 0 30px #06b6d4;
         }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center h-screen selection:bg-cyan-500 selection:text-black">
 
     <!-- TITLE -->
-    <div class="absolute top-10 text-center z-20">
-        <h1 class="text-3xl font-bold tracking-[0.3em] text-cyan-500 hud-text">BRIVAS</h1>
-        <p class="text-xs text-slate-500 mt-1 tracking-widest">BIOMETRIC NEURAL GATEWAY</p>
+    <div class="absolute top-12 text-center z-20">
+        <h1 class="text-4xl font-bold tracking-[0.3em] text-cyan-500 hud-text">BRIVAS</h1>
+        <div class="flex justify-center gap-2 mt-2 text-[10px] text-cyan-800 font-bold tracking-widest">
+            <span>SECURE</span> // <span>BIOMETRIC</span> // <span>GATEWAY</span>
+        </div>
     </div>
 
     <!-- MAIN EYE INTERFACE -->
-    <div class="relative z-10">
+    <div class="relative z-10 mt-10">
         <div id="eye" class="eye-frame">
             <video id="webcam" autoplay playsinline muted></video>
             <div class="scanner"></div>
         </div>
         
-        <!-- STATUS OVERLAY -->
+        <!-- STATUS OVERLAY (Success Icon) -->
         <div id="overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div id="success-icon" class="hidden bg-emerald-500 p-4 rounded-full shadow-lg shadow-emerald-500/50 animate-bounce">
-                <svg class="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+            <div id="success-icon" class="hidden bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
+                <svg class="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
             </div>
         </div>
     </div>
 
     <!-- CONTROLS -->
-    <div class="mt-10 text-center h-32 z-20 w-full max-w-md px-4">
+    <div class="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
         <!-- Start Button -->
-        <button id="startBtn" class="btn-cyber px-8 py-4 rounded-sm font-bold text-sm hidden">
-            INITIALIZE SYSTEM
+        <button id="startBtn" class="btn-cyber px-10 py-4 rounded-sm font-bold text-sm hidden animate-pulse">
+            INITIALIZE LINK
         </button>
 
-        <!-- Challenge Text -->
+        <!-- Challenge UI -->
         <div id="challengeBox" class="hidden">
-            <div id="icon" class="text-6xl mb-4 animate-pulse"></div>
-            <div class="text-cyan-400 font-bold text-xl tracking-widest uppercase animate-pulse" id="instruction"></div>
+            <div id="icon" class="text-7xl mb-4 animate-bounce drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"></div>
+            <div class="text-cyan-400 font-bold text-2xl tracking-widest uppercase animate-pulse hud-text" id="instruction"></div>
+            <div class="text-xs text-cyan-800 mt-2 tracking-widest">AWAITING BIOMETRIC INPUT</div>
         </div>
 
         <!-- Loading Spinner -->
-        <div id="loader" class="flex flex-col items-center text-slate-500 text-xs font-mono gap-2">
-            <div class="w-6 h-6 border-2 border-slate-600 border-t-cyan-500 rounded-full animate-spin"></div>
-            <span>LOADING NEURAL MESH...</span>
+        <div id="loader" class="flex flex-col items-center text-cyan-900 text-xs font-mono gap-3">
+            <div class="w-8 h-8 border-2 border-cyan-900 border-t-cyan-500 rounded-full animate-spin"></div>
+            <span class="tracking-widest">ESTABLISHING NEURAL HANDSHAKE...</span>
         </div>
     </div>
 
     <!-- LOGS -->
-    <div class="fixed bottom-4 right-4 text-[10px] text-slate-700 font-mono text-right">
-        STATUS: <span id="debug-status" class="text-cyan-600">BOOTING</span>
+    <div class="fixed bottom-4 right-4 text-[10px] text-slate-800 font-mono text-right">
+        SYSTEM STATUS: <span id="debug-status" class="text-cyan-600 font-bold">BOOTING</span>
     </div>
 
-    <!-- LOGIC -->
-    <script type="module">
-        // 1. DIRECT IMPORT (Fixes "mediapipe is not defined")
-        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
-
+    <script>
+        // --- GLOBALS ---
         const video = document.getElementById('webcam');
         const eye = document.getElementById('eye');
         const startBtn = document.getElementById('startBtn');
@@ -149,97 +154,20 @@
         
         const CHALLENGES = [
             { id: 'blink', text: 'BLINK EYES', icon: '👁️', check: (s) => (s.eyeBlinkLeft > 0.5 || s.eyeBlinkRight > 0.5) },
-            { id: 'smile', text: 'SMILE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5 && s.mouthSmileRight > 0.5) },
+            { id: 'smile', text: 'SMILE WIDE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5 && s.mouthSmileRight > 0.5) },
             { id: 'left', text: 'TURN LEFT', icon: '⬅️', check: (s) => (s.eyeLookOutLeft > 0.5) },
             { id: 'right', text: 'TURN RIGHT', icon: '➡️', check: (s) => (s.eyeLookOutRight > 0.5) },
             { id: 'mouth', text: 'OPEN MOUTH', icon: '😮', check: (s) => (s.jawOpen > 0.3) }
         ];
 
+        // 1. INITIALIZE (Using Global Variables, NO imports)
         async function init() {
             try {
-                // Load AI
-                const vision = await FilesetResolver.forVisionTasks(
+                // Access the global variable loaded by the script tag
+                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
                 );
-                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                
+                faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-                        delegate: "GPU"
-                    },
-                    outputFaceBlendshapes: true,
-                    runningMode: "VIDEO",
-                    numFaces: 1
-                });
-
-                // Load Camera
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.addEventListener("loadeddata", () => {
-                    loader.classList.add('hidden');
-                    startBtn.classList.remove('hidden');
-                    debug.innerText = "READY";
-                    predictLoop();
-                });
-
-            } catch (err) {
-                debug.innerText = "ERROR: " + err.message;
-                alert("Error: " + err.message);
-            }
-        }
-
-        startBtn.addEventListener('click', () => {
-            startBtn.classList.add('hidden');
-            challengeBox.classList.remove('hidden');
-            eye.classList.add('active'); // Blue glow
-            nextChallenge();
-        });
-
-        function nextChallenge() {
-            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-            instruction.innerText = currentChallenge.text;
-            icon.innerText = currentChallenge.icon;
-            debug.innerText = "AWAITING: " + currentChallenge.text;
-        }
-
-        async function predictLoop() {
-            if (video.currentTime !== lastVideoTime) {
-                lastVideoTime = video.currentTime;
-                if (faceLandmarker) {
-                    const startTimeMs = performance.now();
-                    const results = faceLandmarker.detectForVideo(video, startTimeMs);
-                    
-                    if (currentChallenge && results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                        // Map categories to a simple object: { eyeBlinkLeft: 0.9, ... }
-                        const scores = {};
-                        results.faceBlendshapes[0].categories.forEach(c => scores[c.categoryName] = c.score);
-                        
-                        if (currentChallenge.check(scores)) {
-                            success();
-                        }
-                    }
-                }
-            }
-            requestAnimationFrame(predictLoop);
-        }
-
-        function success() {
-            currentChallenge = null; // Stop checking
-            eye.classList.remove('active');
-            eye.classList.add('success'); // Green glow
-            challengeBox.classList.add('hidden');
-            document.getElementById('success-icon').classList.remove('hidden');
-            debug.innerText = "ACCESS GRANTED";
-            
-            // Reset after 3s
-            setTimeout(() => {
-                eye.classList.remove('success');
-                document.getElementById('success-icon').classList.add('hidden');
-                startBtn.classList.remove('hidden');
-                debug.innerText = "READY";
-            }, 3000);
-        }
-
-        init();
-    </script>
-</body>
-</html>
+                        modelAssetPath: `
