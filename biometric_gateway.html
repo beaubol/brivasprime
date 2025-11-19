@@ -1,66 +1,209 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IDaSSERT HUMAN CHECK</title>
+    <title>BRIVAS - Biometric AI Gateway</title>
+    <!-- Tailwind CSS for styling --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- MediaPipe Vision (Global Bundle) --><script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    
     <style>
-        body { background: black; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        video { width: 100%; max-width: 400px; border: 2px solid #0f0; transform: scaleX(-1); }
-        #log { background: #111; width: 90%; height: 150px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; padding: 10px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 20px; cursor: pointer; background: #0f0; border: none; font-weight: bold; }
-        .status { font-size: 24px; margin: 10px; color: white; }
-    </style>
-</head>
-<body>
-
-    <h1>BioGuard Diagnostic Mode</h1>
-    <div class="status" id="statusText">Waiting for start...</div>
-    
-    <video id="webcam" autoplay playsinline muted></video>
-    
-    <button id="startBtn">START CAMERA & AI</button>
-
-    <h3>System Logs:</h3>
-    <div id="log"></div>
-
-    <script type="module">
-        // 1. Setup Logging to Screen
-        function log(msg) {
-            const logDiv = document.getElementById('log');
-            logDiv.innerHTML += `> ${msg}<br>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
-            console.log(msg);
+        body { 
+            background: #020617; /* Dark slate background */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
         }
 
-        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+        /* Animated Background Gradients */
+        .gradient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #0d1226, #020617, #0d1226);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: -1;
+            opacity: 0.6;
+        }
 
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Eye/Camera Container Styling */
+        .eye-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eye-frame {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid #334155; /* Slate-700 */
+            overflow: hidden;
+            transition: all 0.4s ease-in-out;
+            box-shadow: 0 0 15px rgba(0, 200, 255, 0.2); /* Subtle glow */
+            z-index: 10;
+        }
+
+        .eye-frame.active { 
+            border-color: #3B82F6; /* Blue-500 */
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); 
+        }
+        .eye-frame.success { 
+            border-color: #10B981; /* Emerald-500 */
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.8); 
+        }
+
+        /* Video feed mirroring */
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); 
+        }
+
+        /* Scanline for active state */
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3B82F6, transparent);
+            box-shadow: 0 0 15px #3B82F6;
+            top: 0%;
+            left: 0;
+            animation: scan 2s linear infinite;
+            opacity: 0.8;
+            display: none;
+            z-index: 20;
+        }
+        .eye-frame.active .scan-line { display: block; }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* Success Overlay */
+        #success-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.5s; pointer-events: none;
+            z-index: 30; /* Ensure it's above scan-line */
+        }
+        #success-overlay.visible { opacity: 1; pointer-events: auto; }
+
+        /* Circuitry background pattern */
+        .circuitry-bg {
+            position: absolute;
+            inset: -20px; /* Slightly larger than the main container to allow overflow effect */
+            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="circuit" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="10" height="10" fill="none" /><path d="M 0 5 L 10 5" stroke="%230F172A" stroke-width="0.5" /><path d="M 5 0 L 5 10" stroke="%230F172A" stroke-width="0.5" /></pattern></defs><rect width="100%" height="100%" fill="url(%23circuit)" /></svg>');
+            opacity: 0.3;
+            transform: scale(1.1) rotate(5deg);
+            filter: blur(0.5px);
+            pointer-events: none;
+            z-index: 0; /* Behind everything */
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen text-white">
+    <div class="gradient-bg"></div>
+
+    <!-- Header --><div class="absolute top-8 text-center z-10">
+        <h1 class="text-blue-400 font-bold tracking-[0.25em] text-lg uppercase drop-shadow-lg shadow-blue-500/50">BRIVAS AI</h1>
+        <div class="text-xs text-slate-500 mt-1">BIOMETRIC GATEWAY // SECURE</div>
+    </div>
+
+    <!-- Eye/Camera UI --><div class="eye-container z-20">
+        <div class="circuitry-bg"></div>
+        <div id="ring" class="eye-frame">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="scan-line"></div>
+            <div id="success-overlay">
+                <div class="bg-emerald-500 p-4 rounded-full shadow-lg shadow-emerald-500/30">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls & Feedback --><div class="mt-10 text-center min-h-[120px] z-20">
+        <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
+            INITIATE AUTHENTICATION
+        </button>
+
+        <div id="challengeUI" class="hidden">
+            <div id="icon" class="text-6xl mb-3 animate-pulse"></div>
+            <h2 id="instruction" class="text-2xl font-bold text-blue-300"></h2>
+        </div>
+        
+        <div id="statusUI" class="hidden text-emerald-400 font-bold text-xl mt-4 tracking-wide">
+            ACCESS GRANTED
+        </div>
+    </div>
+
+    <!-- Footer Status --><div class="absolute bottom-8 bg-slate-800/60 px-5 py-2 rounded-full border border-blue-600/30 backdrop-blur-sm z-20">
+        <span id="statusDot" class="inline-block w-2.5 h-2.5 rounded-full bg-yellow-500 mr-2 animate-ping"></span>
+        <span id="statusText" class="text-sm font-mono text-slate-400 tracking-wider">Loading System Modules...</span>
+    </div>
+
+    <script type="module">
+        // --- CORE LOGIC (Vanilla JS) ---
         const video = document.getElementById('webcam');
-        const btn = document.getElementById('startBtn');
-        const status = document.getElementById('statusText');
+        const startBtn = document.getElementById('startBtn');
+        const ring = document.getElementById('ring');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const challengeUI = document.getElementById('challengeUI');
+        const instruction = document.getElementById('instruction');
+        const icon = document.getElementById('icon');
+        const statusUI = document.getElementById('statusUI');
+        const successOverlay = document.getElementById('success-overlay');
+
         let faceLandmarker;
+        let currentChallenge = null;
         let lastVideoTime = -1;
+        let isAuthenticating = false;
 
-        btn.addEventListener('click', async () => {
-            btn.style.display = 'none';
-            log("Starting initialization...");
-            
+        const CHALLENGES = [
+            { id: 'blink', label: 'Blink Your Eyes', icon: '😉', blendShape: 'eyeBlinkLeft', threshold: 0.5 },
+            { id: 'smile', label: 'Smile Wide', icon: '😃', blendShape: 'mouthSmileLeft', threshold: 0.5 },
+            { id: 'turnLeft', label: 'Turn Head Left', icon: '⬅️', blendShape: 'eyeLookOutLeft', threshold: 0.4 },
+            { id: 'turnRight', label: 'Turn Head Right', icon: '➡️', blendShape: 'eyeLookOutRight', threshold: 0.4 },
+            { id: 'mouthOpen', label: 'Open Your Mouth', icon: '😮', blendShape: 'jawOpen', threshold: 0.3 }
+        ];
+
+        // --- UI Update Helper ---
+        function updateStatus(text, dotColor, isPinging = false) {
+            statusText.innerText = text;
+            statusDot.className = `inline-block w-2.5 h-2.5 rounded-full mr-2 ${dotColor}`;
+            if (isPinging) {
+                statusDot.classList.add('animate-ping');
+            } else {
+                statusDot.classList.remove('animate-ping');
+            }
+        }
+
+        // 1. Initialize AI Engine & Camera
+        async function initBRIVAS() {
+            updateStatus("Loading AI Engine...", 'bg-yellow-500', true);
             try {
-                // Step 1: Camera
-                log("Requesting Camera...");
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                log("Camera Access Granted!");
-
-                // Step 2: Load AI
-                log("Downloading AI Model (this may take a moment)...");
-                status.innerText = "Downloading AI...";
-                
-                const vision = await FilesetResolver.forVisionTasks(
+                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
                 );
-                
-                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
                         delegate: "GPU"
@@ -69,44 +212,105 @@
                     runningMode: "VIDEO",
                     numFaces: 1
                 });
-
-                log("AI Engine Loaded Successfully!");
-                status.innerText = "System Active - Detecting...";
                 
-                // Start Loop
-                renderLoop();
-
-            } catch (error) {
-                log("CRITICAL ERROR: " + error.message);
-                status.innerText = "FAILED";
-                alert("Error: " + error.message);
+                updateStatus("Camera Access Requested...", 'bg-blue-500', true);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.addEventListener("loadeddata", () => {
+                    updateStatus("System Ready", 'bg-emerald-500');
+                    startBtn.style.display = 'block'; // Show button once ready
+                    predictLoop(); // Start the continuous prediction loop
+                });
+                
+            } catch (err) {
+                console.error("Initialization Error:", err);
+                updateStatus("ERROR: " + err.message, 'bg-red-500');
             }
-        });
+        }
 
-        async function renderLoop() {
+        // 2. Prediction Loop
+        async function predictLoop() {
+            if (!faceLandmarker || !video.srcObject) {
+                 requestAnimationFrame(predictLoop); // Keep trying if not ready
+                 return;
+            }
+
             if (video.currentTime !== lastVideoTime) {
                 lastVideoTime = video.currentTime;
                 const startTimeMs = performance.now();
                 
-                if (faceLandmarker) {
-                    const result = faceLandmarker.detectForVideo(video, startTimeMs);
+                try {
+                    const results = faceLandmarker.detectForVideo(video, startTimeMs);
                     
-                    if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
-                        // Check Blink
-                        const score = result.faceBlendshapes[0].categories.find(c => c.categoryName === 'eyeBlinkLeft').score;
-                        if(score > 0.5) {
-                            status.innerText = "BLINK DETECTED! ✅";
-                            log("Blink detected: " + score.toFixed(2));
-                        } else {
-                            status.innerText = "Eyes Open - Waiting for Blink...";
-                        }
+                    if (isAuthenticating && currentChallenge && results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+                        checkChallengeProgress(results.faceBlendshapes[0].categories);
                     }
+                } catch (e) {
+                    // console.warn("Prediction frame skipped:", e); // Avoid spamming console
                 }
             }
-            requestAnimationFrame(renderLoop);
+            requestAnimationFrame(predictLoop);
         }
-        
-        log("Ready. Click Start.");
+
+        // 3. Challenge Logic
+        function checkChallengeProgress(blendshapes) {
+            const scores = {};
+            blendshapes.forEach(b => scores[b.categoryName] = b.score);
+
+            let score = 0;
+            // Handle specific blendShapes. MediaPipe sometimes uses Left/Right for general movement
+            if (currentChallenge.blendShape.includes('eyeBlink') || currentChallenge.blendShape.includes('mouthSmile')) {
+                score = (scores['eyeBlinkLeft'] || 0) + (scores['eyeBlinkRight'] || 0); // Combine for general blink/smile
+                if (currentChallenge.blendShape.includes('mouthSmile')) score = (scores['mouthSmileLeft'] || 0) + (scores['mouthSmileRight'] || 0);
+            } else {
+                score = scores[currentChallenge.blendShape] || 0;
+            }
+
+            if (score > currentChallenge.threshold) {
+                completeAuthentication();
+            }
+        }
+
+        // --- Event Listeners and UI Flow ---
+        startBtn.addEventListener('click', () => {
+            startBtn.style.display = 'none';
+            challengeUI.classList.remove('hidden');
+            ring.classList.add('active');
+            isAuthenticating = true;
+            statusUI.classList.add('hidden'); // Hide "ACCESS GRANTED" if shown
+            successOverlay.classList.remove('visible'); // Hide success overlay
+
+            startNewChallenge();
+        });
+
+        function startNewChallenge() {
+            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+            icon.innerText = currentChallenge.icon;
+            instruction.innerText = currentChallenge.label;
+            updateStatus(`Perform: ${currentChallenge.label}`, 'bg-blue-500');
+        }
+
+        function completeAuthentication() {
+            isAuthenticating = false;
+            currentChallenge = null;
+            ring.classList.remove('active');
+            ring.classList.add('success');
+            challengeUI.classList.add('hidden');
+            successOverlay.classList.add('visible');
+            statusUI.classList.remove('hidden'); // Show "ACCESS GRANTED"
+            updateStatus("Identity Confirmed!", 'bg-emerald-500');
+            
+            setTimeout(() => {
+                ring.classList.remove('success');
+                successOverlay.classList.remove('visible');
+                statusUI.classList.add('hidden');
+                startBtn.style.display = 'block'; // Show start button again
+                updateStatus("System Ready", 'bg-emerald-500');
+            }, 3000); // Reset after 3 seconds
+        }
+
+        // Initialize BRIVAS on page load
+        initBRIVAS();
     </script>
 </body>
 </html>
