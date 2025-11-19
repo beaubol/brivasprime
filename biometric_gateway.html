@@ -3,38 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS // SECURE</title>
-    
-    <!-- 1. CORE LIBRARIES (The stack that worked for you) -->
+    <title>BRIVAS // SYSTEM</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     
+    <!-- 1. LOAD AI ENGINE (Global Bundle - No Imports) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js" crossorigin="anonymous"></script>
+
     <style>
-        /* --- CYBERPUNK STYLES --- */
+        /* --- CYBERPUNK VISUALS --- */
         body { 
-            background-color: #020617; 
-            color: #e2e8f0; 
-            font-family: 'Courier New', monospace; 
-            overflow: hidden; 
+            background-color: #000510; 
+            color: #00f3ff; 
+            font-family: 'Courier New', Courier, monospace; 
             height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            overflow: hidden;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
             justify-content: center;
         }
-        
-        /* EYE FRAME */
+
+        /* THE EYE */
         .eye-frame {
-            position: relative; width: 280px; height: 280px; margin: 0 auto;
-            border-radius: 50%; border: 2px solid #1e293b; background: #000;
-            box-shadow: 0 0 30px rgba(6, 182, 212, 0.1); overflow: hidden;
+            position: relative; width: 280px; height: 280px;
+            border-radius: 50%; 
+            border: 2px solid #1e293b;
+            background: #000;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+            overflow: hidden;
             transition: all 0.5s;
         }
-        /* Dynamic States */
-        .active { border-color: #06b6d4; box-shadow: 0 0 50px rgba(6, 182, 212, 0.5); }
-        .success { border-color: #10b981; box-shadow: 0 0 50px rgba(16, 185, 129, 0.5); }
+        .active { border-color: #00f3ff; box-shadow: 0 0 50px rgba(0, 243, 255, 0.4); }
+        .success { border-color: #10b981; box-shadow: 0 0 50px rgba(16, 185, 129, 0.6); }
 
         /* VIDEO */
         video {
@@ -44,191 +44,195 @@
         }
         .active video { opacity: 1; filter: grayscale(0%); }
 
-        /* SCANNER */
+        /* SCANNER LINE */
         .scanner {
             position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-            background: #06b6d4; box-shadow: 0 0 15px #06b6d4; opacity: 0; z-index: 10;
+            background: #00f3ff; box-shadow: 0 0 15px #00f3ff; opacity: 0; z-index: 10;
         }
         .active .scanner { opacity: 1; animation: scan 1.5s ease-in-out infinite; }
         @keyframes scan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
 
         /* BUTTON */
         .btn-cyber {
-            background: rgba(6, 182, 212, 0.1); border: 1px solid #06b6d4; color: #06b6d4;
-            text-transform: uppercase; letter-spacing: 3px; padding: 15px 30px;
-            font-weight: bold; cursor: pointer; transition: all 0.3s;
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            padding: 15px 40px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
         }
-        .btn-cyber:hover { background: #06b6d4; color: #000; box-shadow: 0 0 30px #06b6d4; }
+        .btn-cyber:hover { background: #00f3ff; color: #000; box-shadow: 0 0 30px #00f3ff; }
+
+        /* LOGS */
+        #terminal {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100px;
+            background: #001100; color: #0f0; font-size: 11px;
+            border-top: 1px solid #0f0; padding: 10px; overflow-y: scroll;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
-    <div id="root" class="w-full h-full flex flex-col items-center justify-center"></div>
 
-    <!-- 2. REACT APP LOGIC -->
-    <script type="text/babel" data-type="module">
-        // Import MediaPipe (The Module that worked)
-        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+    <!-- HEADER -->
+    <div class="absolute top-12 text-center z-20">
+        <h1 class="text-4xl font-bold tracking-[0.3em] text-cyan-400 drop-shadow-lg">BRIVAS</h1>
+        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-1">BIOMETRIC NEURAL GATEWAY</div>
+    </div>
 
-        const { useState, useEffect, useRef } = React;
+    <!-- CAMERA UI -->
+    <div class="relative z-10">
+        <div id="eye" class="eye-frame">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="scanner"></div>
+        </div>
+        
+        <!-- STATUS ICONS -->
+        <div id="overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div id="success-icon" class="hidden bg-emerald-500 p-6 rounded-full animate-bounce">
+                <svg class="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+        </div>
+    </div>
 
-        // Challenge Logic
+    <!-- ACTION PANEL -->
+    <div class="mt-10 text-center z-20 w-full max-w-md">
+        <button id="startBtn" onclick="startSequence()" class="btn-cyber">INITIALIZE</button>
+
+        <div id="challengeUI" class="hidden">
+            <div id="icon" class="text-7xl mb-2 animate-bounce"></div>
+            <div id="instruction" class="text-2xl font-bold tracking-widest animate-pulse"></div>
+        </div>
+    </div>
+
+    <!-- DEBUG TERMINAL -->
+    <div id="terminal">System Standby...</div>
+
+    <!-- LOGIC -->
+    <script>
+        // 1. LOGGING UTILITY
+        function log(msg) {
+            const t = document.getElementById('terminal');
+            t.innerHTML += `> ${msg}<br>`;
+            t.scrollTop = t.scrollHeight;
+        }
+        window.onerror = function(msg) { log("CRITICAL JS ERROR: " + msg); };
+
+        // 2. VARIABLES
+        const video = document.getElementById('webcam');
+        const eye = document.getElementById('eye');
+        const btn = document.getElementById('startBtn');
+        const ui = document.getElementById('challengeUI');
+        const text = document.getElementById('instruction');
+        const icon = document.getElementById('icon');
+        
+        let faceLandmarker;
+        let lastVideoTime = -1;
+        let currentChallenge = null;
+
         const CHALLENGES = [
-            { id: 'blink', text: 'BLINK EYES', icon: '👁️', check: (s) => (s.eyeBlinkLeft > 0.5 || s.eyeBlinkRight > 0.5) },
-            { id: 'smile', text: 'SMILE WIDE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5 && s.mouthSmileRight > 0.5) },
+            { id: 'blink', text: 'BLINK EYES', icon: '👁️', check: (s) => (s.eyeBlinkLeft > 0.5) },
+            { id: 'smile', text: 'SMILE WIDE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5) },
             { id: 'left', text: 'TURN LEFT', icon: '⬅️', check: (s) => (s.eyeLookOutLeft > 0.5) },
             { id: 'right', text: 'TURN RIGHT', icon: '➡️', check: (s) => (s.eyeLookOutRight > 0.5) },
             { id: 'mouth', text: 'OPEN MOUTH', icon: '😮', check: (s) => (s.jawOpen > 0.3) }
         ];
 
-        function App() {
-            const videoRef = useRef(null);
-            const [status, setStatus] = useState('booting'); // booting, ready, active, success
-            const [challenge, setChallenge] = useState(null);
-            const [landmarker, setLandmarker] = useState(null);
-            const [logText, setLogText] = useState("SYSTEM BOOT...");
+        // 3. START SEQUENCE
+        async function startSequence() {
+            btn.style.display = 'none';
+            log("Initialization Sequence Started...");
 
-            // 1. INITIALIZE SYSTEM
-            useEffect(() => {
-                const loadAI = async () => {
-                    try {
-                        setLogText("LOADING NEURAL MESH...");
-                        const fileset = await FilesetResolver.forVisionTasks(
-                            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                        );
-                        const faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
-                            baseOptions: {
-                                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-                                delegate: "GPU"
-                            },
-                            outputFaceBlendshapes: true,
-                            runningMode: "VIDEO",
-                            numFaces: 1
-                        });
-                        setLandmarker(faceLandmarker);
-                        setLogText("NEURAL ENGINE READY.");
-                        
-                        // Start Camera
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        if (videoRef.current) {
-                            videoRef.current.srcObject = stream;
-                            videoRef.current.addEventListener("loadeddata", () => {
-                                setStatus('ready');
-                                setLogText("OPTICS ONLINE. WAITING.");
-                            });
-                        }
-                    } catch (err) {
-                        setLogText("ERROR: " + err.message);
-                    }
-                };
-                loadAI();
-            }, []);
+            try {
+                // A. Check MediaPipe
+                if (!window.mediapipe) {
+                    throw new Error("MediaPipe library not loaded. Check network.");
+                }
+                log("MediaPipe Library Detected.");
 
-            // 2. DETECTION LOOP
-            useEffect(() => {
-                let lastTime = -1;
-                let frameId;
+                // B. Setup AI
+                const { FaceLandmarker, FilesetResolver } = window.mediapipe.tasks.vision;
+                
+                log("Downloading WASM Kernel...");
+                const fileset = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+                );
 
-                const renderLoop = () => {
-                    if (landmarker && videoRef.current && videoRef.current.currentTime !== lastTime) {
-                        lastTime = videoRef.current.currentTime;
-                        try {
-                            const results = landmarker.detectForVideo(videoRef.current, performance.now());
-                            if (status === 'active' && challenge && results.faceBlendshapes.length > 0) {
-                                const scores = {};
-                                results.faceBlendshapes[0].categories.forEach(c => scores[c.categoryName] = c.score);
-                                if (challenge.check(scores)) {
-                                    handleSuccess();
-                                }
-                            }
-                        } catch (e) {}
-                    }
-                    frameId = requestAnimationFrame(renderLoop);
-                };
-                frameId = requestAnimationFrame(renderLoop);
-                return () => cancelAnimationFrame(frameId);
-            }, [landmarker, status, challenge]);
+                log("Compiling Neural Graph (CPU Mode)...");
+                faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: true,
+                    runningMode: "VIDEO",
+                    numFaces: 1
+                });
 
-            const startAuth = () => {
-                setStatus('active');
-                const next = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-                setChallenge(next);
-                setLogText("AUTH SEQUENCE STARTED.");
-            };
+                // C. Setup Camera
+                log("Requesting Camera Access...");
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                
+                video.addEventListener("loadeddata", () => {
+                    log("Video Feed Active.");
+                    log("SYSTEM ONLINE.");
+                    eye.classList.add('active');
+                    ui.classList.remove('hidden');
+                    nextChallenge();
+                    loop();
+                });
 
-            const handleSuccess = () => {
-                setStatus('success');
-                setLogText("IDENTITY CONFIRMED.");
-                setTimeout(() => {
-                    setStatus('ready');
-                    setLogText("SYSTEM RESET.");
-                }, 3000);
-            };
-
-            return (
-                <div className="flex flex-col items-center w-full">
-                    
-                    {/* HEADER */}
-                    <div className="text-center z-20 mb-10">
-                        <h1 className="text-4xl font-bold tracking-[0.3em] text-cyan-500" style={{textShadow: "0 0 20px rgba(6,182,212,0.5)"}}>BRIVAS</h1>
-                        <div className="flex justify-center gap-2 mt-2 text-[10px] text-cyan-800 font-bold tracking-widest">
-                            <span>SECURE</span> // <span>GATEWAY</span> // <span>V4.0</span>
-                        </div>
-                    </div>
-
-                    {/* EYE INTERFACE */}
-                    <div className="relative z-10">
-                        <div className={`eye-frame ${status === 'active' ? 'active' : ''} ${status === 'success' ? 'success' : ''}`}>
-                            <video ref={videoRef} autoPlay playsInline muted></video>
-                            <div className="scanner"></div>
-                        </div>
-                        
-                        {/* SUCCESS OVERLAY */}
-                        {status === 'success' && (
-                            <div className="absolute inset-0 flex items-center justify-center z-20">
-                                <div className="bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
-                                    <svg className="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"></path></svg>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* CONTROLS */}
-                    <div className="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
-                        
-                        {status === 'ready' && (
-                            <button onClick={startAuth} className="btn-cyber animate-pulse">
-                                INITIALIZE LINK
-                            </button>
-                        )}
-
-                        {status === 'booting' && (
-                            <div className="flex flex-col items-center text-cyan-900 text-xs font-mono gap-3">
-                                <div className="w-8 h-8 border-2 border-cyan-900 border-t-cyan-500 rounded-full animate-spin"></div>
-                                <span className="tracking-widest">BOOT SEQUENCE...</span>
-                            </div>
-                        )}
-
-                        {status === 'active' && challenge && (
-                            <div className="animate-bounce">
-                                <div className="text-7xl mb-4">{challenge.icon}</div>
-                                <div className="text-cyan-400 font-bold text-2xl tracking-widest uppercase animate-pulse" style={{textShadow: "0 0 10px #06b6d4"}}>
-                                    {challenge.text}
-                                </div>
-                                <div className="text-xs text-cyan-900 mt-2 tracking-widest">AWAITING BIOMETRIC INPUT</div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* LOGS */}
-                    <div className="fixed bottom-4 right-4 text-[10px] text-slate-600 font-mono text-right">
-                        STATUS: <span className="text-cyan-600 font-bold">{logText}</span>
-                    </div>
-                </div>
-            );
+            } catch (err) {
+                log("FATAL ERROR: " + err.message);
+                alert("Error: " + err.message);
+                btn.style.display = 'inline-block'; // Let user try again
+            }
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // 4. GAMEPLAY LOOP
+        function nextChallenge() {
+            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+            text.innerText = currentChallenge.text;
+            icon.innerText = currentChallenge.icon;
+            log(`New Task: ${currentChallenge.text}`);
+        }
+
+        function success() {
+            log("Identity Verified.");
+            currentChallenge = null;
+            eye.classList.remove('active');
+            eye.classList.add('success');
+            ui.classList.add('hidden');
+            document.getElementById('success-icon').classList.remove('hidden');
+            
+            setTimeout(() => {
+                eye.classList.remove('success');
+                document.getElementById('success-icon').classList.add('hidden');
+                btn.style.display = 'inline-block';
+                log("Session Ended. Standby.");
+            }, 3000);
+        }
+
+        async function loop() {
+            if (video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                if (faceLandmarker && currentChallenge) {
+                    try {
+                        const res = faceLandmarker.detectForVideo(video, performance.now());
+                        if (res.faceBlendshapes.length > 0) {
+                            const scores = {};
+                            res.faceBlendshapes[0].categories.forEach(c => scores[c.categoryName] = c.score);
+                            if (currentChallenge.check(scores)) success();
+                        }
+                    } catch(e) {}
+                }
+            }
+            requestAnimationFrame(loop);
+        }
     </script>
 </body>
 </html>
