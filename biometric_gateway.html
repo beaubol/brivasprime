@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS // FULL MOTION</title>
+    <title>BRIVAS // CALIBRATED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- LOAD LEGACY ENGINE -->
@@ -64,7 +64,7 @@
     <!-- HUD -->
     <div class="absolute top-12 text-center z-20">
         <h1 class="text-5xl font-bold tracking-[0.2em] text-cyan-400 drop-shadow-lg">BRIVAS</h1>
-        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">FULL MOTION NEURAL CORE v3.0</div>
+        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">CALIBRATED NEURAL CORE v2.1</div>
     </div>
 
     <!-- EYE -->
@@ -193,8 +193,12 @@
 
             // 4. HEAD PITCH (Y-Axis)
             const eyeCenterY = (eyeLeft.y + eyeRight.y) / 2;
-            const turnValY = nose.y - eyeCenterY; 
-
+            const mouthCenterY = (mouthLeft.y + mouthRight.y) / 2;
+            
+            const noseToEye = Math.abs(nose.y - eyeCenterY);
+            const noseToMouth = Math.abs(mouthCenterY - nose.y);
+            const pitchRatio = noseToEye / noseToMouth; 
+            
             let pass = false;
             let debugInfo = "";
 
@@ -204,8 +208,8 @@
             }
             
             if (currentChallenge.id === 'smile') {
-                debugInfo = `Smile: ${smileRatio.toFixed(2)} (Goal > 0.48)`;
-                if (smileRatio > 0.48) pass = true;
+                debugInfo = `Smile: ${smileRatio.toFixed(2)} (Goal > 0.45)`;
+                if (smileRatio > 0.45) pass = true;
             }
             
             if (currentChallenge.id === 'left') {
@@ -219,16 +223,16 @@
             }
 
             if (currentChallenge.id === 'up') {
-                debugInfo = `Nose Y: ${turnValY.toFixed(2)} (Goal < 0.08)`;
-                if (turnValY < 0.08) pass = true;
+                debugInfo = `Pitch: ${pitchRatio.toFixed(2)} (Goal < 0.7)`;
+                if (pitchRatio < 0.7) pass = true;
             }
 
             if (currentChallenge.id === 'down') {
-                debugInfo = `Nose Y: ${turnValY.toFixed(2)} (Goal > 0.25)`;
-                if (turnValY > 0.25) pass = true;
+                debugInfo = `Pitch: ${pitchRatio.toFixed(2)} (Goal > 1.6)`;
+                if (pitchRatio > 1.6) pass = true;
             }
 
-            // Live Debug Log (1 in 15 frames)
+            // Log stats every 15 frames to avoid spam
             if (Math.random() > 0.93) log("STATS: " + debugInfo);
 
             if (pass) success();
