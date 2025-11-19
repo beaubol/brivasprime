@@ -3,207 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS - Biometric AI Gateway</title>
-    <!-- Tailwind CSS for styling --><script src="https://cdn.tailwindcss.com"></script>
-    <!-- MediaPipe Vision (Global Bundle) --><script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    <title>BRIVAS // SECURE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        body { 
-            background: #020617; /* Dark slate background */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-        }
-
-        /* Animated Background Gradients */
-        .gradient-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #0d1226, #020617, #0d1226);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
-            z-index: -1;
-            opacity: 0.6;
-        }
-
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* Eye/Camera Container Styling */
-        .eye-container {
-            position: relative;
-            width: 280px;
-            height: 280px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        /* --- CYBERPUNK STYLING --- */
+        body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        
+        /* The Eye Container */
         .eye-frame {
-            position: absolute;
-            width: 100%;
-            height: 100%;
+            position: relative;
+            width: 300px; height: 300px;
+            margin: 0 auto;
             border-radius: 50%;
-            border: 4px solid #334155; /* Slate-700 */
+            border: 2px solid #1e293b; /* Dark border */
+            box-shadow: 0 0 20px rgba(0,0,0,0.8) inset;
             overflow: hidden;
-            transition: all 0.4s ease-in-out;
-            box-shadow: 0 0 15px rgba(0, 200, 255, 0.2); /* Subtle glow */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* State: Active (Blue Glow) */
+        .eye-frame.active {
+            border-color: #06b6d4; /* Cyan-500 */
+            box-shadow: 0 0 30px #06b6d4, 0 0 10px #06b6d4 inset;
+        }
+
+        /* State: Success (Green Glow) */
+        .eye-frame.success {
+            border-color: #10b981; /* Emerald-500 */
+            box-shadow: 0 0 40px #10b981, 0 0 20px #10b981 inset;
+        }
+
+        /* The Video Feed */
+        video {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror */
+            opacity: 0.6; /* Dimmed until active */
+            transition: opacity 0.5s;
+        }
+        .eye-frame.active video { opacity: 1; }
+
+        /* The Scanning Laser */
+        .scanner {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 4px;
+            background: #06b6d4;
+            box-shadow: 0 0 15px #06b6d4;
+            opacity: 0;
             z-index: 10;
         }
-
-        .eye-frame.active { 
-            border-color: #3B82F6; /* Blue-500 */
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); 
+        .eye-frame.active .scanner {
+            opacity: 1;
+            animation: scan 2s ease-in-out infinite;
         }
-        .eye-frame.success { 
-            border-color: #10B981; /* Emerald-500 */
-            box-shadow: 0 0 30px rgba(16, 185, 129, 0.8); 
-        }
-
-        /* Video feed mirroring */
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1); 
-        }
-
-        /* Scanline for active state */
-        .scan-line {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #3B82F6, transparent);
-            box-shadow: 0 0 15px #3B82F6;
-            top: 0%;
-            left: 0;
-            animation: scan 2s linear infinite;
-            opacity: 0.8;
-            display: none;
-            z-index: 20;
-        }
-        .eye-frame.active .scan-line { display: block; }
         @keyframes scan {
-            0% { top: 0%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { top: 100%; opacity: 0; }
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
         }
 
-        /* Success Overlay */
-        #success-overlay {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.7);
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.5s; pointer-events: none;
-            z-index: 30; /* Ensure it's above scan-line */
+        /* HUD Elements */
+        .hud-text { text-shadow: 0 0 5px rgba(6, 182, 212, 0.5); }
+        .btn-cyber {
+            background: linear-gradient(45deg, #0f172a, #1e293b);
+            border: 1px solid #06b6d4;
+            color: #06b6d4;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+            transition: all 0.3s;
         }
-        #success-overlay.visible { opacity: 1; pointer-events: auto; }
-
-        /* Circuitry background pattern */
-        .circuitry-bg {
-            position: absolute;
-            inset: -20px; /* Slightly larger than the main container to allow overflow effect */
-            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="circuit" width="10" height="10" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="10" height="10" fill="none" /><path d="M 0 5 L 10 5" stroke="%230F172A" stroke-width="0.5" /><path d="M 5 0 L 5 10" stroke="%230F172A" stroke-width="0.5" /></pattern></defs><rect width="100%" height="100%" fill="url(%23circuit)" /></svg>');
-            opacity: 0.3;
-            transform: scale(1.1) rotate(5deg);
-            filter: blur(0.5px);
-            pointer-events: none;
-            z-index: 0; /* Behind everything */
+        .btn-cyber:hover {
+            background: #06b6d4;
+            color: #000;
+            box-shadow: 0 0 20px #06b6d4;
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center h-screen text-white">
-    <div class="gradient-bg"></div>
+<body class="flex flex-col items-center justify-center h-screen selection:bg-cyan-500 selection:text-black">
 
-    <!-- Header --><div class="absolute top-8 text-center z-10">
-        <h1 class="text-blue-400 font-bold tracking-[0.25em] text-lg uppercase drop-shadow-lg shadow-blue-500/50">BRIVAS AI</h1>
-        <div class="text-xs text-slate-500 mt-1">BIOMETRIC GATEWAY // SECURE</div>
+    <!-- TITLE -->
+    <div class="absolute top-10 text-center z-20">
+        <h1 class="text-3xl font-bold tracking-[0.3em] text-cyan-500 hud-text">BRIVAS</h1>
+        <p class="text-xs text-slate-500 mt-1 tracking-widest">BIOMETRIC NEURAL GATEWAY</p>
     </div>
 
-    <!-- Eye/Camera UI --><div class="eye-container z-20">
-        <div class="circuitry-bg"></div>
-        <div id="ring" class="eye-frame">
+    <!-- MAIN EYE INTERFACE -->
+    <div class="relative z-10">
+        <div id="eye" class="eye-frame">
             <video id="webcam" autoplay playsinline muted></video>
-            <div class="scan-line"></div>
-            <div id="success-overlay">
-                <div class="bg-emerald-500 p-4 rounded-full shadow-lg shadow-emerald-500/30">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                </div>
+            <div class="scanner"></div>
+        </div>
+        
+        <!-- STATUS OVERLAY -->
+        <div id="overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div id="success-icon" class="hidden bg-emerald-500 p-4 rounded-full shadow-lg shadow-emerald-500/50 animate-bounce">
+                <svg class="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
         </div>
     </div>
 
-    <!-- Controls & Feedback --><div class="mt-10 text-center min-h-[120px] z-20">
-        <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-full font-semibold shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
-            INITIATE AUTHENTICATION
+    <!-- CONTROLS -->
+    <div class="mt-10 text-center h-32 z-20 w-full max-w-md px-4">
+        <!-- Start Button -->
+        <button id="startBtn" class="btn-cyber px-8 py-4 rounded-sm font-bold text-sm hidden">
+            INITIALIZE SYSTEM
         </button>
 
-        <div id="challengeUI" class="hidden">
-            <div id="icon" class="text-6xl mb-3 animate-pulse"></div>
-            <h2 id="instruction" class="text-2xl font-bold text-blue-300"></h2>
+        <!-- Challenge Text -->
+        <div id="challengeBox" class="hidden">
+            <div id="icon" class="text-6xl mb-4 animate-pulse"></div>
+            <div class="text-cyan-400 font-bold text-xl tracking-widest uppercase animate-pulse" id="instruction"></div>
         </div>
-        
-        <div id="statusUI" class="hidden text-emerald-400 font-bold text-xl mt-4 tracking-wide">
-            ACCESS GRANTED
+
+        <!-- Loading Spinner -->
+        <div id="loader" class="flex flex-col items-center text-slate-500 text-xs font-mono gap-2">
+            <div class="w-6 h-6 border-2 border-slate-600 border-t-cyan-500 rounded-full animate-spin"></div>
+            <span>LOADING NEURAL MESH...</span>
         </div>
     </div>
 
-    <!-- Footer Status --><div class="absolute bottom-8 bg-slate-800/60 px-5 py-2 rounded-full border border-blue-600/30 backdrop-blur-sm z-20">
-        <span id="statusDot" class="inline-block w-2.5 h-2.5 rounded-full bg-yellow-500 mr-2 animate-ping"></span>
-        <span id="statusText" class="text-sm font-mono text-slate-400 tracking-wider">Loading System Modules...</span>
+    <!-- LOGS -->
+    <div class="fixed bottom-4 right-4 text-[10px] text-slate-700 font-mono text-right">
+        STATUS: <span id="debug-status" class="text-cyan-600">BOOTING</span>
     </div>
 
+    <!-- LOGIC -->
     <script type="module">
-        // --- CORE LOGIC (Vanilla JS) ---
+        // 1. DIRECT IMPORT (Fixes "mediapipe is not defined")
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+
         const video = document.getElementById('webcam');
+        const eye = document.getElementById('eye');
         const startBtn = document.getElementById('startBtn');
-        const ring = document.getElementById('ring');
-        const statusText = document.getElementById('statusText');
-        const statusDot = document.getElementById('statusDot');
-        const challengeUI = document.getElementById('challengeUI');
+        const loader = document.getElementById('loader');
+        const challengeBox = document.getElementById('challengeBox');
         const instruction = document.getElementById('instruction');
         const icon = document.getElementById('icon');
-        const statusUI = document.getElementById('statusUI');
-        const successOverlay = document.getElementById('success-overlay');
+        const debug = document.getElementById('debug-status');
 
         let faceLandmarker;
-        let currentChallenge = null;
         let lastVideoTime = -1;
-        let isAuthenticating = false;
-
+        let currentChallenge = null;
+        
         const CHALLENGES = [
-            { id: 'blink', label: 'Blink Your Eyes', icon: '😉', blendShape: 'eyeBlinkLeft', threshold: 0.5 },
-            { id: 'smile', label: 'Smile Wide', icon: '😃', blendShape: 'mouthSmileLeft', threshold: 0.5 },
-            { id: 'turnLeft', label: 'Turn Head Left', icon: '⬅️', blendShape: 'eyeLookOutLeft', threshold: 0.4 },
-            { id: 'turnRight', label: 'Turn Head Right', icon: '➡️', blendShape: 'eyeLookOutRight', threshold: 0.4 },
-            { id: 'mouthOpen', label: 'Open Your Mouth', icon: '😮', blendShape: 'jawOpen', threshold: 0.3 }
+            { id: 'blink', text: 'BLINK EYES', icon: '👁️', check: (s) => (s.eyeBlinkLeft > 0.5 || s.eyeBlinkRight > 0.5) },
+            { id: 'smile', text: 'SMILE', icon: '😃', check: (s) => (s.mouthSmileLeft > 0.5 && s.mouthSmileRight > 0.5) },
+            { id: 'left', text: 'TURN LEFT', icon: '⬅️', check: (s) => (s.eyeLookOutLeft > 0.5) },
+            { id: 'right', text: 'TURN RIGHT', icon: '➡️', check: (s) => (s.eyeLookOutRight > 0.5) },
+            { id: 'mouth', text: 'OPEN MOUTH', icon: '😮', check: (s) => (s.jawOpen > 0.3) }
         ];
 
-        // --- UI Update Helper ---
-        function updateStatus(text, dotColor, isPinging = false) {
-            statusText.innerText = text;
-            statusDot.className = `inline-block w-2.5 h-2.5 rounded-full mr-2 ${dotColor}`;
-            if (isPinging) {
-                statusDot.classList.add('animate-ping');
-            } else {
-                statusDot.classList.remove('animate-ping');
-            }
-        }
-
-        // 1. Initialize AI Engine & Camera
-        async function initBRIVAS() {
-            updateStatus("Loading AI Engine...", 'bg-yellow-500', true);
+        async function init() {
             try {
-                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
+                // Load AI
+                const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
                 );
-                faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
                         delegate: "GPU"
@@ -212,105 +170,76 @@
                     runningMode: "VIDEO",
                     numFaces: 1
                 });
-                
-                updateStatus("Camera Access Requested...", 'bg-blue-500', true);
+
+                // Load Camera
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 video.addEventListener("loadeddata", () => {
-                    updateStatus("System Ready", 'bg-emerald-500');
-                    startBtn.style.display = 'block'; // Show button once ready
-                    predictLoop(); // Start the continuous prediction loop
+                    loader.classList.add('hidden');
+                    startBtn.classList.remove('hidden');
+                    debug.innerText = "READY";
+                    predictLoop();
                 });
-                
+
             } catch (err) {
-                console.error("Initialization Error:", err);
-                updateStatus("ERROR: " + err.message, 'bg-red-500');
+                debug.innerText = "ERROR: " + err.message;
+                alert("Error: " + err.message);
             }
         }
 
-        // 2. Prediction Loop
-        async function predictLoop() {
-            if (!faceLandmarker || !video.srcObject) {
-                 requestAnimationFrame(predictLoop); // Keep trying if not ready
-                 return;
-            }
+        startBtn.addEventListener('click', () => {
+            startBtn.classList.add('hidden');
+            challengeBox.classList.remove('hidden');
+            eye.classList.add('active'); // Blue glow
+            nextChallenge();
+        });
 
+        function nextChallenge() {
+            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+            instruction.innerText = currentChallenge.text;
+            icon.innerText = currentChallenge.icon;
+            debug.innerText = "AWAITING: " + currentChallenge.text;
+        }
+
+        async function predictLoop() {
             if (video.currentTime !== lastVideoTime) {
                 lastVideoTime = video.currentTime;
-                const startTimeMs = performance.now();
-                
-                try {
+                if (faceLandmarker) {
+                    const startTimeMs = performance.now();
                     const results = faceLandmarker.detectForVideo(video, startTimeMs);
                     
-                    if (isAuthenticating && currentChallenge && results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                        checkChallengeProgress(results.faceBlendshapes[0].categories);
+                    if (currentChallenge && results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+                        // Map categories to a simple object: { eyeBlinkLeft: 0.9, ... }
+                        const scores = {};
+                        results.faceBlendshapes[0].categories.forEach(c => scores[c.categoryName] = c.score);
+                        
+                        if (currentChallenge.check(scores)) {
+                            success();
+                        }
                     }
-                } catch (e) {
-                    // console.warn("Prediction frame skipped:", e); // Avoid spamming console
                 }
             }
             requestAnimationFrame(predictLoop);
         }
 
-        // 3. Challenge Logic
-        function checkChallengeProgress(blendshapes) {
-            const scores = {};
-            blendshapes.forEach(b => scores[b.categoryName] = b.score);
-
-            let score = 0;
-            // Handle specific blendShapes. MediaPipe sometimes uses Left/Right for general movement
-            if (currentChallenge.blendShape.includes('eyeBlink') || currentChallenge.blendShape.includes('mouthSmile')) {
-                score = (scores['eyeBlinkLeft'] || 0) + (scores['eyeBlinkRight'] || 0); // Combine for general blink/smile
-                if (currentChallenge.blendShape.includes('mouthSmile')) score = (scores['mouthSmileLeft'] || 0) + (scores['mouthSmileRight'] || 0);
-            } else {
-                score = scores[currentChallenge.blendShape] || 0;
-            }
-
-            if (score > currentChallenge.threshold) {
-                completeAuthentication();
-            }
-        }
-
-        // --- Event Listeners and UI Flow ---
-        startBtn.addEventListener('click', () => {
-            startBtn.style.display = 'none';
-            challengeUI.classList.remove('hidden');
-            ring.classList.add('active');
-            isAuthenticating = true;
-            statusUI.classList.add('hidden'); // Hide "ACCESS GRANTED" if shown
-            successOverlay.classList.remove('visible'); // Hide success overlay
-
-            startNewChallenge();
-        });
-
-        function startNewChallenge() {
-            currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
-            icon.innerText = currentChallenge.icon;
-            instruction.innerText = currentChallenge.label;
-            updateStatus(`Perform: ${currentChallenge.label}`, 'bg-blue-500');
-        }
-
-        function completeAuthentication() {
-            isAuthenticating = false;
-            currentChallenge = null;
-            ring.classList.remove('active');
-            ring.classList.add('success');
-            challengeUI.classList.add('hidden');
-            successOverlay.classList.add('visible');
-            statusUI.classList.remove('hidden'); // Show "ACCESS GRANTED"
-            updateStatus("Identity Confirmed!", 'bg-emerald-500');
+        function success() {
+            currentChallenge = null; // Stop checking
+            eye.classList.remove('active');
+            eye.classList.add('success'); // Green glow
+            challengeBox.classList.add('hidden');
+            document.getElementById('success-icon').classList.remove('hidden');
+            debug.innerText = "ACCESS GRANTED";
             
+            // Reset after 3s
             setTimeout(() => {
-                ring.classList.remove('success');
-                successOverlay.classList.remove('visible');
-                statusUI.classList.add('hidden');
-                startBtn.style.display = 'block'; // Show start button again
-                updateStatus("System Ready", 'bg-emerald-500');
-            }, 3000); // Reset after 3 seconds
+                eye.classList.remove('success');
+                document.getElementById('success-icon').classList.add('hidden');
+                startBtn.classList.remove('hidden');
+                debug.innerText = "READY";
+            }, 3000);
         }
 
-        // Initialize BRIVAS on page load
-        initBRIVAS();
+        init();
     </script>
 </body>
 </html>
