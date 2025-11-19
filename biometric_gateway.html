@@ -3,142 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS // ATOMIC</title>
+    <title>BRIVAS // SECURE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
-        body { 
-            background-color: #000; color: #0f0; font-family: 'Courier New', monospace; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 100vh; margin: 0; overflow: hidden;
-        }
-        #camera-frame {
-            width: 300px; height: 300px; border: 4px solid #333; border-radius: 50%; 
-            overflow: hidden; position: relative; background: #111;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        /* --- CYBERPUNK STYLING --- */
+        body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         
-        .btn { 
-            margin-top: 20px; padding: 15px 30px; background: #004400; color: #0f0; 
-            border: 1px solid #0f0; font-weight: bold; cursor: pointer; display: none;
+        /* The Eye Container */
+        .eye-frame {
+            position: relative; width: 300px; height: 300px; margin: 0 auto;
+            border-radius: 50%; border: 2px solid #1e293b; background: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1); overflow: hidden;
+            transition: all 0.5s;
         }
+        .eye-frame.active { border-color: #06b6d4; box-shadow: 0 0 40px #06b6d4; }
+        .eye-frame.success { border-color: #10b981; box-shadow: 0 0 50px #10b981; }
+
+        video {
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scaleX(-1); opacity: 0.4; filter: grayscale(100%) contrast(1.2);
+            transition: all 0.5s;
+        }
+        .eye-frame.active video { opacity: 1; filter: grayscale(0%); }
+
+        .scanner {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: #06b6d4; box-shadow: 0 0 15px #06b6d4; opacity: 0; z-index: 10;
+        }
+        .eye-frame.active .scanner { opacity: 1; animation: scan 1.5s ease-in-out infinite; }
+        @keyframes scan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+
+        .hud-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
+        .btn-cyber {
+            background: rgba(6, 182, 212, 0.1); border: 1px solid #06b6d4; color: #06b6d4;
+            text-transform: uppercase; letter-spacing: 3px;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2); transition: all 0.3s; cursor: pointer;
+        }
+        .btn-cyber:hover { background: #06b6d4; color: #000; box-shadow: 0 0 30px #06b6d4; }
 
         #logs {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 150px; 
-            background: #050505; border-top: 2px solid #0f0; padding: 10px; 
-            overflow-y: scroll; font-size: 12px; z-index: 100;
-        }
-        
-        /* If this shows, CSS is working */
-        #heartbeat {
-            width: 10px; height: 10px; background: red; position: fixed; top: 10px; right: 10px;
+            position: fixed; bottom: 10px; right: 10px; text-align: right;
+            font-size: 10px; color: #0f0; font-family: monospace;
+            pointer-events: none; opacity: 0.7;
         }
     </style>
 </head>
-<body>
+<body class="flex flex-col items-center justify-center h-screen selection:bg-cyan-500 selection:text-black">
 
-    <div id="heartbeat"></div>
-    <h1>BRIVAS SYSTEM</h1>
-    <h3 id="status">INITIALIZING...</h3>
-
-    <div id="camera-frame">
-        <video id="webcam" autoplay playsinline muted></video>
+    <!-- TITLE -->
+    <div class="absolute top-12 text-center z-20">
+        <h1 class="text-4xl font-bold tracking-[0.3em] text-cyan-500 hud-text">BRIVAS</h1>
+        <div class="flex justify-center gap-2 mt-2 text-[10px] text-cyan-800 font-bold tracking-widest">
+            <span>SECURE</span> // <span>BIOMETRIC</span> // <span>GATEWAY</span>
+        </div>
     </div>
 
-    <button id="startBtn" class="btn">START AUTHENTICATION</button>
+    <!-- INTERFACE -->
+    <div class="relative z-10 mt-10">
+        <div id="eye" class="eye-frame">
+            <video id="webcam" autoplay playsinline muted></video>
+            <div class="scanner"></div>
+        </div>
+        
+        <div id="overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div id="success-icon" class="hidden bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
+                <svg class="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+        </div>
+    </div>
 
-    <div id="logs">Waiting for JS...<br></div>
+    <!-- CONTROLS -->
+    <div class="mt-12 text-center h-32 z-20 w-full max-w-md px-4">
+        <button id="startBtn" class="btn-cyber px-10 py-4 rounded-sm font-bold text-sm hidden animate-pulse">
+            INITIALIZE LINK
+        </button>
 
-    <script>
-        // 1. VISUAL CHECK - Turns Blue if JS starts
-        document.getElementById('heartbeat').style.background = "blue";
-
-        function log(msg) {
-            const div = document.getElementById('logs');
-            div.innerHTML += `> ${msg}<br>`;
-            div.scrollTop = div.scrollHeight;
-        }
-
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                log(`Attempting download: ${src}`);
-                const script = document.createElement('script');
-                script.src = src;
-                script.crossOrigin = "anonymous";
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Failed to load ${src}`));
-                document.head.appendChild(script);
-            });
-        }
-
-        async function main() {
-            try {
-                log("JS Heartbeat Active.");
-                
-                // 2. LOAD AI LIBRARY (Switching to UNPKG)
-                log(" downloading AI Engine from UNPKG...");
-                await loadScript("https://unpkg.com/@mediapipe/tasks-vision@0.10.0/vision_bundle.js");
-                log("AI Engine Downloaded!");
-
-                // 3. CHECK OBJECT
-                if (typeof mediapipe === 'undefined') {
-                    throw new Error("MediaPipe loaded but global object is missing.");
-                }
-                log("MediaPipe Object Found.");
-
-                // 4. INIT AI
-                log("Compiling WASM (CPU Mode)...");
-                const vision = await mediapipe.tasks.vision.FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-                );
-                
-                const faceLandmarker = await mediapipe.tasks.vision.FaceLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-                        delegate: "CPU"
-                    },
-                    outputFaceBlendshapes: true,
-                    runningMode: "VIDEO",
-                    numFaces: 1
-                });
-                log("AI Compiled Successfully.");
-
-                // 5. CAMERA
-                log("Requesting Camera...");
-                const video = document.getElementById('webcam');
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                
-                video.addEventListener("loadeddata", () => {
-                    log("Camera Active.");
-                    document.getElementById('status').innerText = "SYSTEM ONLINE";
-                    document.getElementById('status').style.color = "#0f0";
-                    document.getElementById('startBtn').style.display = "block";
-                    
-                    // Simple Loop
-                    let lastTime = -1;
-                    function loop() {
-                        if (video.currentTime !== lastTime) {
-                            lastTime = video.currentTime;
-                            const res = faceLandmarker.detectForVideo(video, performance.now());
-                            if(res.faceBlendshapes.length > 0) {
-                                const blink = res.faceBlendshapes[0].categories.find(c=>c.categoryName==='eyeBlinkLeft').score;
-                                if(blink > 0.5) document.getElementById('status').innerText = "BLINK DETECTED!";
-                                else document.getElementById('status').innerText = "Tracking Face...";
-                            }
-                        }
-                        requestAnimationFrame(loop);
-                    }
-                    loop();
-                });
-
-            } catch (err) {
-                log("CRITICAL FAILURE: " + err.message);
-                document.getElementById('status').innerText = "ERROR";
-                document.getElementById('status').style.color = "red";
-                document.getElementById('heartbeat').style.background = "red";
-            }
-        }
-
-        main();
-    </script>
-</body>
-</html>
+        <div id="challengeBox" class="hidden">
+            <div id="icon" class
