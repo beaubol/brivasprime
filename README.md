@@ -1,6 +1,7 @@
 # brivasprime
 A swift Python Proof Of Human Gateway using MediaPipe
-BioGuard Secure Gateway
+
+Biometric Motion Vector Secure Gateway
 
 BioGuard is a high-security, biometric liveness detection gateway designed for mobile and web applications. It prevents spoofing attacks (like holding up a photo) by challenging the user to perform random "motion proofs" (blinking, smiling, turning the head) before verifying their identity.
 
