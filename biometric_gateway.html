@@ -23,8 +23,7 @@
 
 <!-- data-type="module" is crucial for imports to work in Babel -->
 <script type="text/babel" data-type="module">
-    // Import MediaPipe from the ESM CDN to fix "Unexpected token 'export'" errors
-    import { FaceLandmarker, FilesetResolver } from "[https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm](https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm)";
+    import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
     const { useState, useEffect, useRef } = React;
 
