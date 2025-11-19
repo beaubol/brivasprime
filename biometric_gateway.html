@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRIVAS // LEGACY CORE</title>
+    <title>BRIVAS // CALIBRATED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 1. LOAD LEGACY ENGINE (Robust & Compatible) -->
+    <!-- LOAD LEGACY ENGINE -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
@@ -43,9 +43,9 @@
         .btn-cyber:hover { background: #00f3ff; color: #000; box-shadow: 0 0 40px #00f3ff; }
 
         #terminal {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 120px;
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 150px;
             background: #001100; color: #0f0; font-size: 11px; padding: 15px;
-            border-top: 1px solid #0f0; overflow-y: scroll;
+            border-top: 1px solid #0f0; overflow-y: scroll; z-index: 50;
         }
     </style>
 </head>
@@ -54,7 +54,7 @@
     <!-- HUD -->
     <div class="absolute top-12 text-center z-20">
         <h1 class="text-5xl font-bold tracking-[0.2em] text-cyan-400 drop-shadow-lg">BRIVAS</h1>
-        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">LEGACY NEURAL CORE v1.0</div>
+        <div class="text-xs text-cyan-800 font-bold tracking-widest mt-2">CALIBRATED NEURAL CORE v2.1</div>
     </div>
 
     <!-- EYE -->
@@ -63,7 +63,6 @@
             <video id="webcam" playsinline muted></video>
             <div class="scanner"></div>
         </div>
-        <!-- Success Icon -->
         <div id="success-overlay" class="absolute inset-0 flex items-center justify-center hidden pointer-events-none">
             <div class="bg-emerald-500 p-6 rounded-full shadow-[0_0_50px_#10b981] animate-bounce">
                 <svg class="w-12 h-12 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
@@ -71,7 +70,6 @@
         </div>
     </div>
 
-    <!-- CONTROLS -->
     <button id="startBtn" class="btn-cyber" onclick="startSystem()">INITIALIZE SYSTEM</button>
     
     <div id="challengeUI" class="hidden mt-8 text-center">
@@ -98,6 +96,7 @@
         let faceMesh;
         let camera;
         let currentChallenge = null;
+        let isProcessing = false;
 
         const CHALLENGES = [
             { id: 'blink', text: 'BLINK EYES', icon: '👁️' },
@@ -106,24 +105,21 @@
             { id: 'right', text: 'TURN RIGHT', icon: '➡️' }
         ];
 
-        // 1. CHECK IF LIBRARY LOADED
         window.onload = function() {
             if (window.FaceMesh) {
-                log("Legacy FaceMesh Loaded.");
+                log("Neural Engine Loaded.");
                 btn.style.display = "inline-block";
             } else {
-                log("FATAL: CDN Blocked. Engine not found.");
+                log("FATAL: CDN Blocked.");
             }
         };
 
         async function startSystem() {
             btn.style.display = 'none';
-            log("Initializing Core...");
+            log("Calibrating Sensors...");
 
             try {
-                faceMesh = new FaceMesh({locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-                }});
+                faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
 
                 faceMesh.setOptions({
                     maxNumFaces: 1,
@@ -133,7 +129,6 @@
                 });
 
                 faceMesh.onResults(onResults);
-                log("Neural Net Built.");
 
                 camera = new Camera(video, {
                     onFrame: async () => {
@@ -143,55 +138,74 @@
                     height: 480
                 });
 
-                log("Starting Optical Sensor...");
                 await camera.start();
-                
-                log("SYSTEM ONLINE.");
+                log("SENSORS ONLINE.");
                 eye.classList.add('active');
                 ui.classList.remove('hidden');
                 nextChallenge();
 
             } catch (err) {
-                log("CRITICAL ERROR: " + err.message);
-                alert("Error: " + err.message);
+                log("ERROR: " + err.message);
             }
         }
 
         function onResults(results) {
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0 && currentChallenge) {
-                const landmarks = results.multiFaceLandmarks[0];
-                checkLogic(landmarks);
-            }
-        }
+            if (isProcessing || !currentChallenge || !results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+            
+            const landmarks = results.multiFaceLandmarks[0];
+            
+            // --- RELATIVE MATH (Distance Independent) ---
+            
+            // 1. BLINK RATIO (Vertical / Horizontal)
+            const eyeTop = landmarks[159];
+            const eyeBottom = landmarks[145];
+            const eyeLeft = landmarks[33];
+            const eyeRight = landmarks[133];
+            
+            const eyeV = Math.abs(eyeTop.y - eyeBottom.y);
+            const eyeH = Math.abs(eyeLeft.x - eyeRight.x);
+            const blinkRatio = eyeV / eyeH; // Open ~0.3, Closed < 0.18
 
-        function checkLogic(landmarks) {
-            // Simple Logic for Legacy Landmarks
-            // Blink: Distance between eyelids
-            // Smile: Distance between lip corners
-            
-            // 1. BLINK (Left Eye)
-            const leftEyeTop = landmarks[159];
-            const leftEyeBottom = landmarks[145];
-            const eyeDist = Math.abs(leftEyeTop.y - leftEyeBottom.y);
-            
-            // 2. SMILE (Mouth Corners)
+            // 2. SMILE RATIO (Mouth Width / Face Width)
             const mouthLeft = landmarks[61];
             const mouthRight = landmarks[291];
-            const mouthWidth = Math.abs(mouthLeft.x - mouthRight.x);
+            const cheekLeft = landmarks[234];
+            const cheekRight = landmarks[454];
+            
+            const mouthW = Math.abs(mouthLeft.x - mouthRight.x);
+            const faceW = Math.abs(cheekLeft.x - cheekRight.x);
+            const smileRatio = mouthW / faceW; // Neutral ~0.35, Smile > 0.45
 
-            // 3. TURN (Nose Position relative to eyes)
+            // 3. TURN VAL (Nose X relative to Face Center)
             const nose = landmarks[1];
-            const leftCheek = landmarks[234];
-            const rightCheek = landmarks[454];
-            const faceCenter = (leftCheek.x + rightCheek.x) / 2;
+            const faceCenter = (cheekLeft.x + cheekRight.x) / 2;
             const turnVal = nose.x - faceCenter;
 
             let pass = false;
+            let debugInfo = "";
 
-            if (currentChallenge.id === 'blink' && eyeDist < 0.009) pass = true;
-            if (currentChallenge.id === 'smile' && mouthWidth > 0.25) pass = true;
-            if (currentChallenge.id === 'left' && turnVal < -0.05) pass = true; // Inverted because mirror
-            if (currentChallenge.id === 'right' && turnVal > 0.05) pass = true;
+            if (currentChallenge.id === 'blink') {
+                debugInfo = `Eye Ratio: ${blinkRatio.toFixed(2)} (Goal < 0.18)`;
+                if (blinkRatio < 0.18) pass = true;
+            }
+            
+            if (currentChallenge.id === 'smile') {
+                debugInfo = `Smile Ratio: ${smileRatio.toFixed(2)} (Goal > 0.48)`;
+                if (smileRatio > 0.48) pass = true;
+            }
+            
+            if (currentChallenge.id === 'left') {
+                debugInfo = `Turn Val: ${turnVal.toFixed(2)} (Goal < -0.04)`;
+                if (turnVal < -0.04) pass = true;
+            }
+            
+            if (currentChallenge.id === 'right') {
+                debugInfo = `Turn Val: ${turnVal.toFixed(2)} (Goal > 0.04)`;
+                if (turnVal > 0.04) pass = true;
+            }
+
+            // Show live stats occasionally to help debug (1 in 10 frames)
+            if (Math.random() > 0.9) log("STATS: " + debugInfo);
 
             if (pass) success();
         }
@@ -200,12 +214,13 @@
             currentChallenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
             text.innerText = currentChallenge.text;
             icon.innerText = currentChallenge.icon;
-            log("Task: " + currentChallenge.text);
+            log("NEW TASK: " + currentChallenge.text);
+            isProcessing = false;
         }
 
         function success() {
-            currentChallenge = null;
-            log("Verified.");
+            isProcessing = true; // Stop checking
+            log("VERIFIED.");
             eye.classList.remove('active');
             eye.classList.add('success');
             ui.classList.add('hidden');
